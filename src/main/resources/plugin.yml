@@ -1,0 +1,5 @@
+name: vibemine
+version: '${version}'
+main: io.rcw.vibemine.Vibemine
+api-version: '26.1.2'
+load: POSTWORLD

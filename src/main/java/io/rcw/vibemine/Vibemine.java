@@ -1,0 +1,32 @@
+package io.rcw.vibemine;
+
+import io.rcw.vibemine.commands.VibeCommand;
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class Vibemine extends JavaPlugin {
+    private static Vibemine instance;
+
+    Vibemine() {
+        instance = this;
+    }
+
+    @Override
+    public void onEnable() {
+        // Plugin startup logic
+
+        // vibe command -> opens book -> type prompt -> feed to llm/coding agent to create code -> code compiles to jvm (or we use a scripting language like groovy/javascript for this)
+
+        this.registerCommand("vibe", new VibeCommand());
+    }
+
+    @Override
+    public void onDisable() {
+    }
+
+
+    public static Vibemine getInstance() {
+        return Vibemine.instance;
+    }
+
+ }
