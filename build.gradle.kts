@@ -29,7 +29,8 @@ dependencies {
 
     // include openai
     implementation("com.openai:openai-java:4.35.0")
-
+    // for javascript
+    implementation(platform("org.graalvm.js:js:25.0.3"))
     // hibernate orm instead of writing raw sql lol
     implementation("org.hibernate.orm:hibernate-core:7.3.4.Final")
 }
