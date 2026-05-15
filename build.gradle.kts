@@ -33,6 +33,12 @@ dependencies {
     implementation(platform("org.graalvm.js:js:25.0.3"))
     // hibernate orm instead of writing raw sql lol
     implementation("org.hibernate.orm:hibernate-core:7.3.4.Final")
+
+    // for syntax highlighting
+    implementation("io.github.tree-sitter:jtreesitter:0.26.0")
+
+    implementation("io.github.bonede:tree-sitter:0.26.6")
+    implementation("io.github.bonede:tree-sitter-json:0.26.6")
 }
 
 java {
