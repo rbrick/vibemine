@@ -1,8 +1,5 @@
 package io.rcw.vibemine;
 
-import io.github.treesitter.jtreesitter.Language;
-import io.github.treesitter.jtreesitter.Parser;
-import io.github.treesitter.jtreesitter.internal.TreeSitter;
 import io.rcw.vibemine.commands.VibeCommand;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;

@@ -27,12 +27,6 @@ public class ChatHandler implements Listener {
         Conversation conversation = Conversation.forPlayer(player);
 
         event.setCancelled(true); // prevent from sending message
-
-
-
-
-        conversation.
-
     }
 
 }
