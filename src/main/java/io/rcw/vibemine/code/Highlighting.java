@@ -1,13 +1,20 @@
 package io.rcw.vibemine.code;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import org.jspecify.annotations.NonNull;
 import org.treesitter.*;
 
+import java.util.Comparator;
 import java.util.LinkedList;
 
 public class Highlighting {
-    record Highlight(int start, int end, TextColor color) { }
+
+    private static final Highlight ZERO =  new Highlight("","", 0, 0, TextColor.color(0x0));
+
+    record Highlight(String text, String kind, int start, int end, TextColor color) { }
+
 
     public static Component highlight(final String code) {
         try (var parser = new TSParser();
@@ -20,9 +27,13 @@ public class Highlighting {
             var root = tree.getRootNode();
             var query = query(language);
 
+
             try (
                     var cursor = new TSQueryCursor();
                     ) {
+
+                cursor.exec(query, root);
+
                 var match = new TSQueryMatch();
 
                 // first step: extract the highlighted words
@@ -37,21 +48,24 @@ public class Highlighting {
 
                         // TODO(ryan) do something with capture name
                         var captureName = query.getCaptureNameForId(capture.getIndex());
+                        highlightedWords.push(new Highlight(code.substring(start, end), captureName, start, end, getTextColor(captureName)));
 
-                        switch (captureName) {
-                            case "keyword":
-                            case "constant.builtin":
-                                highlightedWords.push(new Highlight(start, end, TextColor.color(0xffb86c)));
-                            case "string":
-                                highlightedWords.push(new Highlight(start, end, TextColor.color(0x50fa7b)));
-                            case "number":
-                                highlightedWords.push(new Highlight(start, end, TextColor.color(0x8be9fd)));
-                        }
                     }
                 }
+
+                highlightedWords.sort(Comparator.comparingInt(Highlight::start));
                 return toComponent(code, highlightedWords);
             }
         }
+    }
+
+    private static @NonNull TextColor getTextColor(String captureName) {
+        return switch (captureName) {
+            case "keyword", "constant.builtin" -> TextColor.color(0xffb86c);
+            case "string" -> TextColor.color(0x50fa7b);
+            case "number" -> TextColor.color(0x8be9fd);
+            default -> NamedTextColor.WHITE;
+        };
     }
 
 
@@ -61,7 +75,7 @@ public class Highlighting {
         // then rebuild the string w/ highlights
         for (int i = 0; i < highlighted.size(); i++) {
             var highlight = highlighted.get(i);
-            var priorHighlight = i == 0 ? new Highlight(0, 0, TextColor.color(0x0)) : highlighted.get(i - 1);
+            var priorHighlight = i == 0 ? ZERO : highlighted.get(i - 1);
             // the code prior to the highlight
             var before = sourceCode.substring(priorHighlight.end(), highlight.start());
 
