@@ -3,6 +3,7 @@ package io.rcw.vibemine.commands;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.rcw.vibemine.Items;
+import io.rcw.vibemine.code.Highlighting;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -21,6 +22,10 @@ public class VibeCommand implements BasicCommand {
             return;
         }
 
-
+        sender.sendMessage(Highlighting.highlight("""
+                function add(a,b) {
+                  return "Hello, " + a + b + 1;
+                }
+                """));
     }
 }

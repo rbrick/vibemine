@@ -37,6 +37,7 @@ dependencies {
     // for syntax highlighting
     implementation("io.github.bonede:tree-sitter:0.26.6")
     implementation("io.github.bonede:tree-sitter-json:0.24.8")
+    implementation("io.github.bonede:tree-sitter-javascript:0.23.1")
 }
 
 java {

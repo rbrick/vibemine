@@ -13,7 +13,7 @@ public class VibedEvent implements VibedCode {
     }
 
     @Override
-    public void execute() {
-        // TODO: execute the source code with a given context (Event being called)
+    public void execute(ExecutionContext context) {
+
     }
 }
