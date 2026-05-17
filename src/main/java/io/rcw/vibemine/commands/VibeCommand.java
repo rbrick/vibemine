@@ -23,8 +23,29 @@ public class VibeCommand implements BasicCommand {
         }
 
         sender.sendMessage(Highlighting.highlight("""
-                function add(a,b) {
-                  return "Hello, " + a + b + 1;
+                class PlayerStats {
+                    constructor(name) {
+                        this.name = name;
+                        this.level = 42;
+                        this.health = 99.5;
+                        this.online = true;
+                    }
+                
+                    damage(amount) {
+                        this.health -= amount;
+                
+                        if (this.health <= 0) {
+                            return "dead";
+                        }
+                
+                        return `HP: ${this.health}`;
+                    }
+                }
+                
+                const stats = new PlayerStats("Ryan");
+                
+                for (let i = 0; i < 3; i++) {
+                    console.log(stats.damage(i * 5));
                 }
                 """));
     }

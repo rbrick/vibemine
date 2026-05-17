@@ -8,12 +8,26 @@ import org.treesitter.*;
 
 import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.Map;
 
 public class Highlighting {
 
     private static final Highlight ZERO =  new Highlight("","", 0, 0, TextColor.color(0x0));
 
     record Highlight(String text, String kind, int start, int end, TextColor color) { }
+
+    record Theme(Map<String, TextColor> colors) {
+        TextColor colorFor(final String name) {
+            return  colors.getOrDefault(name, NamedTextColor.WHITE);
+        }
+    }
+
+    static Theme DEFAULT_THEME = new Theme(Map.of(
+            "keyword", TextColor.color(0xffb86c), // Keyword color
+            "constant.builtin", TextColor.color(0xffb86c), // constant color
+            "string", TextColor.color(0x50fa7b), // string color
+            "number", TextColor.color(0x8be9fd)
+    ));
 
 
     public static Component highlight(final String code) {
@@ -60,12 +74,7 @@ public class Highlighting {
     }
 
     private static @NonNull TextColor getTextColor(String captureName) {
-        return switch (captureName) {
-            case "keyword", "constant.builtin" -> TextColor.color(0xffb86c);
-            case "string" -> TextColor.color(0x50fa7b);
-            case "number" -> TextColor.color(0x8be9fd);
-            default -> NamedTextColor.WHITE;
-        };
+        return DEFAULT_THEME.colorFor(captureName);
     }
 
 
@@ -149,6 +158,7 @@ public class Highlighting {
                   "while"
                   "with"
                   "yield"
+                  "constructor"
                 ] @keyword
                 """);
     }
