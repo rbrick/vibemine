@@ -6,7 +6,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Conversation {
+public final class Conversation {
 
     public static final Map<UUID, Conversation> conversing = new ConcurrentHashMap<>();
 

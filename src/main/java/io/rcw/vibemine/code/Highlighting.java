@@ -33,16 +33,15 @@ public final class Highlighting {
     ));
 
 
-    public static Component highlight(final String code) {
-        try (var parser = new TSParser();
-             var language = new TreeSitterJavascript()) {
+    public static Component highlight(final Language language, final String code) {
+        try (var parser = new TSParser();) {
 
             // set the language to be javascript
-            parser.setLanguage(language);
+            parser.setLanguage(language.language());
 
             var tree = parser.parseString(null, code);
             var root = tree.getRootNode();
-            var query = query(language);
+            var query = language.query();
 
 
             try (
@@ -81,12 +80,22 @@ public final class Highlighting {
 
 
     private static Component toComponent(final String sourceCode, final LinkedList<Highlight> highlighted) {
+        highlighted.forEach(highlight -> System.out.printf("%s [%s] (%d->%d)%n", highlight.text, highlight.kind, highlight.start, highlight.end));
+
         Component highlightedCode = Component.empty();
 
+        // TODO(ryan): correctly implement cursoring
+        int cursor = 0;
         // then rebuild the string w/ highlights
         for (int i = 0; i < highlighted.size(); i++) {
             var highlight = highlighted.get(i);
             var priorHighlight = i == 0 ? ZERO : highlighted.get(i - 1);
+
+            // repeated capture
+            if (priorHighlight.end() > highlight.start()) {
+                continue;
+            }
+
             // the code prior to the highlight
             var before = sourceCode.substring(priorHighlight.end(), highlight.start());
 
@@ -98,77 +107,10 @@ public final class Highlighting {
                             .append(
                                     Component.text(sourceCode.substring(highlight.start(), highlight.end())).color(highlight.color)
                             );
+
+            cursor += highlight.end() - priorHighlight.end();
         }
 
         return highlightedCode.append(Component.text(sourceCode.substring(highlighted.getLast().end())));
     }
-
-    private static TSQuery query(TSLanguage language) {
-        return new TSQuery(language, """
-                (string) @string
-                (template_string) @string
-                (escape_sequence) @string.escape
-                (number) @number
-                
-                (function_declaration
-                  name: (identifier) @function)
-                
-                (method_definition
-                  name: (property_identifier) @method)
-               
-                
-                
-                [
-                (true)
-                (false)
-                (null)
-                (undefined)
-                ] @constant.builtin
-                
-                [
-                  "as"
-                  "async"
-                  "await"
-                  "break"
-                  "case"
-                  "catch"
-                  "class"
-                  "const"
-                  "continue"
-                  "debugger"
-                  "default"
-                  "delete"
-                  "do"
-                  "else"
-                  "export"
-                  "extends"
-                  "finally"
-                  "for"
-                  "from"
-                  "function"
-                  "get"
-                  "if"
-                  "import"
-                  "in"
-                  "instanceof"
-                  "let"
-                  "new"
-                  "of"
-                  "return"
-                  "set"
-                  "static"
-                  "switch"
-                  "target"
-                  "throw"
-                  "try"
-                  "typeof"
-                  "var"
-                  "void"
-                  "while"
-                  "with"
-                  "yield"
-                ] @keyword
-                """);
-    }
-
 }

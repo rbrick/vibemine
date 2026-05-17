@@ -31,13 +31,16 @@ dependencies {
     implementation("com.openai:openai-java:4.35.0")
     // for javascript
     implementation(platform("org.graalvm.js:js:25.0.3"))
-    // hibernate orm instead of writing raw sql lol
-    implementation("org.hibernate.orm:hibernate-core:7.3.4.Final")
+
+    implementation("org.xerial:sqlite-jdbc:3.53.1.0")
+
+
 
     // for syntax highlighting
     implementation("io.github.bonede:tree-sitter:0.26.6")
     implementation("io.github.bonede:tree-sitter-json:0.24.8")
     implementation("io.github.bonede:tree-sitter-javascript:0.23.1")
+
 }
 
 java {

@@ -4,6 +4,7 @@ import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.rcw.vibemine.Items;
 import io.rcw.vibemine.code.Highlighting;
+import io.rcw.vibemine.code.Language;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -22,36 +23,34 @@ public class VibeCommand implements BasicCommand {
             return;
         }
 
-        sender.sendMessage(Highlighting.highlight("""
-                class PlayerStats {
-                    constructor(name) {
-                        this.name = name;
-                        this.level = 42;
-                        this.health = 99.5;
-                        this.online = true;
-                    }
+        sender.sendMessage(Highlighting.highlight(Language.JSON,"""
+                {
+                  "name": "test",
+                  "enabled": true,
+                  "count": 42,
+                  "message": "Hello\\nWorld",
+                  "items": ["a", "b", "c"],
+                  "nested": {
+                    "value": null,
+                    "flag": false
+                  }
+                }
+                """));
+
+
+        sender.sendMessage(Highlighting.highlight(Language.JAVASCRIPT, """
+                function greet(name) {
+                  const message = `Hello, ${name}!`;
                 
-                    damage(amount) {
-                        this.health -= amount;
+                  if (name === "Steve") {
+                    return true;
+                  }
                 
-                        if (this.health <= 0) {
-                            return "dead";
-                        }
-                
-                        return `HP: ${this.health}`;
-                    }
+                  return message;
                 }
                 
-                
-                function test(a,b) {
-                  return a+b+1;
-                }
-                
-                const stats = new PlayerStats("Ryan");
-                
-                for (let i = 0; i < 3; i++) {
-                    console.log(stats.damage(i * 5));
-                }
+                const result = greet("Alex");
+                console.log(result);
                 """));
     }
 }
