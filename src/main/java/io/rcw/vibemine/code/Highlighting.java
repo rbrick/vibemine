@@ -10,7 +10,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Map;
 
-public class Highlighting {
+public final class Highlighting {
 
     private static final Highlight ZERO =  new Highlight("","", 0, 0, TextColor.color(0x0));
 
@@ -22,11 +22,14 @@ public class Highlighting {
         }
     }
 
+    // Colors taken from dracula theme
     static Theme DEFAULT_THEME = new Theme(Map.of(
             "keyword", TextColor.color(0xffb86c), // Keyword color
             "constant.builtin", TextColor.color(0xffb86c), // constant color
             "string", TextColor.color(0x50fa7b), // string color
-            "number", TextColor.color(0x8be9fd)
+            "number", TextColor.color(0x8be9fd),
+            "function", TextColor.color(0xbd93f9),
+            "method", TextColor.color(0xbd93f9)
     ));
 
 
@@ -60,7 +63,6 @@ public class Highlighting {
                         int start = capture.getNode().getStartByte();
                         int end = capture.getNode().getEndByte();
 
-                        // TODO(ryan) do something with capture name
                         var captureName = query.getCaptureNameForId(capture.getIndex());
                         highlightedWords.push(new Highlight(code.substring(start, end), captureName, start, end, getTextColor(captureName)));
 
@@ -106,8 +108,15 @@ public class Highlighting {
                 (string) @string
                 (template_string) @string
                 (escape_sequence) @string.escape
-                
                 (number) @number
+                
+                (function_declaration
+                  name: (identifier) @function)
+                
+                (method_definition
+                  name: (property_identifier) @method)
+               
+                
                 
                 [
                 (true)
@@ -158,7 +167,6 @@ public class Highlighting {
                   "while"
                   "with"
                   "yield"
-                  "constructor"
                 ] @keyword
                 """);
     }

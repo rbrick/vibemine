@@ -42,6 +42,11 @@ public class VibeCommand implements BasicCommand {
                     }
                 }
                 
+                
+                function test(a,b) {
+                  return a+b+1;
+                }
+                
                 const stats = new PlayerStats("Ryan");
                 
                 for (let i = 0; i < 3; i++) {
