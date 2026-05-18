@@ -1,15 +1,23 @@
 package io.rcw.vibemine;
 
-import io.rcw.vibemine.code.Highlighting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import io.rcw.vibemine.ai.chat.Conversation;
+import io.rcw.vibemine.ai.chat.adapters.ConversationAdapter;
+import io.rcw.vibemine.ai.chat.adapters.MessageAdapter;
 import io.rcw.vibemine.commands.VibeCommand;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Arrays;
-
 public final class Vibemine extends JavaPlugin {
+    public static Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(Conversation.class, new ConversationAdapter())
+            .registerTypeAdapter(Conversation.Message.class, new MessageAdapter())
+            .setPrettyPrinting().create();
+
     private static Vibemine instance;
+
+
 
     Vibemine() {
         instance = this;

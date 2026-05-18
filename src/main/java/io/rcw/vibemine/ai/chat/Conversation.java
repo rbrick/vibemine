@@ -8,13 +8,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class Conversation {
 
+    public static final int CHAT_HISTORY_LIMIT = 10;
+
+    public record Message(Sender sender, String message, long timestamp) {}
+
     public static final Map<UUID, Conversation> conversing = new ConcurrentHashMap<>();
 
-    // Key = sender
-    // Value = Set of Messages
-    private Map<String, List<String>> messages = new ConcurrentHashMap<>();
+    private final Set<Message> messages = new HashSet<>();
+    private final UUID sessionId;
 
-    public Conversation() {}
+
+    public Conversation(UUID sessionId, Collection<Message> messages) {
+        this.sessionId = sessionId;
+        this.messages.addAll(messages);
+    }
+
+    public Conversation() {
+        // create a new session id
+        this.sessionId = UUID.randomUUID();
+    }
 
     public static Conversation beginConversation(final Player player) {
         // start a conversation with the user
@@ -36,8 +48,15 @@ public final class Conversation {
         return conversing.get(player.getUniqueId());
     }
 
-    public List<String> messagesForSender(final String sender) {
-        return messages.getOrDefault(sender, new ArrayList<>());
+    public void addMessage(final Message message) {
+        this.messages.add(message);
     }
 
+    public UUID getSessionId() {
+        return sessionId;
+    }
+
+    public Set<Message> getMessages() {
+        return this.messages;
+    }
 }
