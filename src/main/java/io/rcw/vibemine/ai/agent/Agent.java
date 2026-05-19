@@ -14,6 +14,8 @@ public abstract class Agent {
 
     public abstract CompletableFuture<AgentResponse> generateFromConversation(final Conversation conversation);
 
+    public abstract CompletableFuture<String> summarize(final Conversation conversation);
+
     public String getModel() {
         return model;
     }

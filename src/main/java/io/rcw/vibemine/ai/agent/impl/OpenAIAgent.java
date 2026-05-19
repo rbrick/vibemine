@@ -13,13 +13,40 @@ import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static io.rcw.vibemine.ai.agent.SystemPrompt.BASIC_SYSTEM_PROMPT;
 
 public class OpenAIAgent extends Agent {
+    private static final String OPEN_AI_SUMMARIZE_MODEL = "gpt-5.4-nano";
+
+    private static final String SUMMARIZE_PROMPT = """
+                    You are maintaining memory for a Minecraft server AI agent.
+            
+                    Existing summary:
+                    %s
+            
+                    New conversation turns:
+                    %s
+            
+                    Update the summary.
+            
+                    Rules:
+                    - Keep it concise.
+                    - Preserve facts useful for future replies.
+                    - Preserve user instructions and preferences.
+                    - Preserve active tasks and unresolved bugs.
+                    - Remove greetings, repetition, and one-off chatter.
+                    - Do not answer the user.
+                    - Do not invent facts.
+            
+                    Output only the updated summary.
+            """;
+
     private final OpenAIClientAsync  openAIClient;
+
 
     private final ChatCompletionSystemMessageParam systemPrompt;
 
@@ -37,19 +64,25 @@ public class OpenAIAgent extends Agent {
     public CompletableFuture<AgentResponse> generateFromConversation(Conversation conversation) {
         final var messages = new ArrayList<ChatCompletionMessageParam>();
         final var conversations = new ArrayList<>(conversation.getMessages());
-        // always add system prompt first
-//        messages.addFirst(ChatCompletionMessageParam.ofSystem(systemPrompt));
-        messages.addFirst(ChatCompletionMessageParam.ofSystem(
-                basicSystemPrompt
-        ));
 
-        // add chat history
-        conversations.stream().limit(Conversation.CHAT_HISTORY_LIMIT).map(message -> {
-            if (message.sender() ==  Sender.AGENT) {
-                return ChatCompletionMessageParam.ofAssistant(toAssistantMessage(message.message()));
-            }
-            return ChatCompletionMessageParam.ofUser(toUserMessage(message.message()));
-        }).forEach(messages::add);
+        conversations.sort(Comparator.comparingLong(Conversation.Message::timestamp));
+
+        final int start = Math.max(0, conversations.size() - Conversation.CHAT_HISTORY_LIMIT);
+
+        conversations.subList(start, conversations.size())
+                .forEach(message -> {
+                    switch (message.sender()) {
+                        case USER -> messages.add(ChatCompletionMessageParam.ofUser(
+                                toUserMessage(message.message())
+                        ));
+
+                        case AGENT -> messages.add(ChatCompletionMessageParam.ofAssistant(
+                                toAssistantMessage(message.message())
+                        ));
+                    }
+                });
+
+
 
         return openAIClient.chat()
                         .completions()
@@ -62,6 +95,11 @@ public class OpenAIAgent extends Agent {
                                 .message()
                                 .content()
                                 .orElse("failed to get response")));
+    }
+
+    @Override
+    public CompletableFuture<String> summarize(Conversation conversation) {
+        return null;
     }
 
     private ChatCompletionUserMessageParam toUserMessage(final String content) {
