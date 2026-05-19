@@ -98,14 +98,19 @@ public class OpenAIAgent extends Agent {
     public CompletableFuture<String> summarize(Conversation conversation) {
         var chatHistory = conversation.formatChatHistory(Conversation.CHAT_HISTORY_LIMIT);
         var lastSummary = conversation.getSummary().orElse("unavailable");
-        var systemMessage = ChatCompletionSystemMessageParam.builder()
-                .content(SystemPrompt.SUMMARIZE_PROMPT.formatted(lastSummary, chatHistory)).build();
-
+        var messages = List.of(
+                ChatCompletionMessageParam.ofSystem(
+                        toSystemMessage("You summarize conversation history for an AI agent. Output only the updated summary.")
+                ),
+                ChatCompletionMessageParam.ofUser(
+                        toUserMessage(SystemPrompt.SUMMARIZE_PROMPT.formatted(lastSummary, chatHistory))
+                )
+        );
         return openAIClient.chat()
                 .completions()
                 .create(ChatCompletionCreateParams.builder()
                         .model(OPEN_AI_SUMMARIZE_MODEL)
-                        .messages(List.of(ChatCompletionMessageParam.ofSystem(systemMessage))).build())
+                        .messages(messages).build())
                 .thenApply((chatCompletion) -> chatCompletion
                         .choices()
                         .getFirst()
