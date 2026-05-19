@@ -1,9 +1,8 @@
 package io.rcw.vibemine.ai.agent;
 
 import io.rcw.vibemine.ai.chat.Conversation;
-import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public abstract class Agent {
     private final String model, apiKey;
@@ -13,7 +12,7 @@ public abstract class Agent {
         this.apiKey = apiKey;
     }
 
-    public abstract VibedPluginSchema generateFromConversation(final Conversation conversation);
+    public abstract CompletableFuture<AgentResponse> generateFromConversation(final Conversation conversation);
 
     public String getModel() {
         return model;

@@ -15,12 +15,14 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
     @Override
     public Conversation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
         var object = json.getAsJsonObject();
+
+        var playerId = object.get("playerId").getAsString();
         var sessionId = object.getAsJsonPrimitive("session").getAsString();
         //noinspection unchecked
         var messages = (List<Message>) context.deserialize(object.get("messages"), new TypeToken<ArrayList<Message>>() {
         }.getType());
 
-        return new Conversation(UUID.fromString(sessionId), messages);
+        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages);
     }
 
     @Override
@@ -28,6 +30,7 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
         var object = new JsonObject();
 
         object.addProperty("session", src.getSessionId().toString());
+        object.addProperty("playerId", src.getPlayerId().toString());
         object.add("messages", context.serialize(src.getMessages()));
 
         return object;

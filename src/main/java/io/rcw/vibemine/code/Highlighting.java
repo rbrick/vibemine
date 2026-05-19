@@ -84,15 +84,14 @@ public final class Highlighting {
 
         Component highlightedCode = Component.empty();
 
-        // TODO(ryan): correctly implement cursoring
+
         int cursor = 0;
         // then rebuild the string w/ highlights
         for (int i = 0; i < highlighted.size(); i++) {
             var highlight = highlighted.get(i);
             var priorHighlight = i == 0 ? ZERO : highlighted.get(i - 1);
 
-            // repeated capture
-            if (priorHighlight.end() > highlight.start()) {
+            if (highlight.start() < cursor) {
                 continue;
             }
 
@@ -108,7 +107,7 @@ public final class Highlighting {
                                     Component.text(sourceCode.substring(highlight.start(), highlight.end())).color(highlight.color)
                             );
 
-            cursor += highlight.end() - priorHighlight.end();
+            cursor = highlight.end();
         }
 
         return highlightedCode.append(Component.text(sourceCode.substring(highlighted.getLast().end())));

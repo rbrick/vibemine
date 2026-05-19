@@ -13,14 +13,59 @@ public interface HighlightQueries {
                 (method_definition
                   name: (property_identifier) @method)
                
-                
-                
                 [
                 (true)
                 (false)
                 (null)
                 (undefined)
                 ] @constant.builtin
+                
+                [
+                  "-"
+                  "--"
+                  "-="
+                  "+"
+                  "++"
+                  "+="
+                  "*"
+                  "*="
+                  "**"
+                  "**="
+                  "/"
+                  "/="
+                  "%"
+                  "%="
+                  "<"
+                  "<="
+                  "<<"
+                  "<<="
+                  "="
+                  "=="
+                  "==="
+                  "!"
+                  "!="
+                  "!=="
+                  "=>"
+                  ">"
+                  ">="
+                  ">>"
+                  ">>="
+                  ">>>"
+                  ">>>="
+                  "~"
+                  "^"
+                  "&"
+                  "|"
+                  "^="
+                  "&="
+                  "|="
+                  "&&"
+                  "||"
+                  "??"
+                  "&&="
+                  "||="
+                  "??="
+                ] @operator
                 
                 [
                   "as"
