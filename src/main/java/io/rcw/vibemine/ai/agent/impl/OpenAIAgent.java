@@ -14,6 +14,7 @@ import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
@@ -22,31 +23,7 @@ import static io.rcw.vibemine.ai.agent.SystemPrompt.BASIC_SYSTEM_PROMPT;
 public class OpenAIAgent extends Agent {
     private static final String OPEN_AI_SUMMARIZE_MODEL = "gpt-5.4-nano";
 
-    private static final String SUMMARIZE_PROMPT = """
-                    You are maintaining memory for a Minecraft server AI agent.
-            
-                    Existing summary:
-                    %s
-            
-                    New conversation turns:
-                    %s
-            
-                    Update the summary.
-            
-                    Rules:
-                    - Keep it concise.
-                    - Preserve facts useful for future replies.
-                    - Preserve user instructions and preferences.
-                    - Preserve active tasks and unresolved bugs.
-                    - Remove greetings, repetition, and one-off chatter.
-                    - Do not answer the user.
-                    - Do not invent facts.
-            
-                    Output only the updated summary.
-            """;
-
     private final OpenAIClientAsync  openAIClient;
-
 
     private final ChatCompletionSystemMessageParam systemPrompt;
 
@@ -66,40 +43,79 @@ public class OpenAIAgent extends Agent {
         final var conversations = new ArrayList<>(conversation.getMessages());
 
         conversations.sort(Comparator.comparingLong(Conversation.Message::timestamp));
+        var latestUserMessage = conversations.stream()
+                .filter(message -> message.sender() == Sender.USER)
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new IllegalStateException("No user message found"));
 
-        final int start = Math.max(0, conversations.size() - Conversation.CHAT_HISTORY_LIMIT);
+        System.out.println(latestUserMessage.message() + " " + latestUserMessage.timestamp());
 
-        conversations.subList(start, conversations.size())
-                .forEach(message -> {
-                    switch (message.sender()) {
-                        case USER -> messages.add(ChatCompletionMessageParam.ofUser(
-                                toUserMessage(message.message())
-                        ));
+        return this.summarize(conversation).thenCompose(
+                summary -> {
+                    // add the system prompts
+                    // the system prompt
+                    messages.add(
+                            ChatCompletionMessageParam.ofSystem(
+                                    toSystemMessage(BASIC_SYSTEM_PROMPT)
+                            )
+                    );
 
-                        case AGENT -> messages.add(ChatCompletionMessageParam.ofAssistant(
-                                toAssistantMessage(message.message())
-                        ));
-                    }
-                });
+                    // chat summary
+                    messages.add(
+                            ChatCompletionMessageParam.ofSystem(
+                                    toSystemMessage(
+                                            String.format("""
+                                                    Prior chat summary for context only.
+                                                    Do not answer the summary.
+                                                    Only answer the latest user message.
+                                                    
+                                                    %s
+                                                    """, summary))
+                            )
+                    );
 
+                    // add the latest user message
+                    messages.add(
+                            ChatCompletionMessageParam.ofUser(
+                                    toUserMessage(latestUserMessage.message())));
 
-
-        return openAIClient.chat()
-                        .completions()
-                        .create(ChatCompletionCreateParams.builder()
-                                .model(this.getModel())
-                        .messages(messages).build())
-                        .thenApply((chatCompletion) -> new AgentResponse(ResponseType.DEBUG, chatCompletion
-                                .choices()
-                                .getFirst()
-                                .message()
-                                .content()
-                                .orElse("failed to get response")));
+                    return openAIClient.chat()
+                            .completions()
+                            .create(ChatCompletionCreateParams.builder()
+                                    .model(this.getModel())
+                                    .messages(messages).build())
+                            .thenApply((chatCompletion) -> new AgentResponse(ResponseType.DEBUG, chatCompletion
+                                    .choices()
+                                    .getFirst()
+                                    .message()
+                                    .content()
+                                    .orElse("failed to get response")));
+                }
+        );
     }
 
     @Override
     public CompletableFuture<String> summarize(Conversation conversation) {
-        return null;
+        var chatHistory = conversation.formatChatHistory(Conversation.CHAT_HISTORY_LIMIT);
+        var lastSummary = conversation.getSummary().orElse("unavailable");
+        var systemMessage = ChatCompletionSystemMessageParam.builder()
+                .content(SystemPrompt.SUMMARIZE_PROMPT.formatted(lastSummary, chatHistory)).build();
+
+        return openAIClient.chat()
+                .completions()
+                .create(ChatCompletionCreateParams.builder()
+                        .model(OPEN_AI_SUMMARIZE_MODEL)
+                        .messages(List.of(ChatCompletionMessageParam.ofSystem(systemMessage))).build())
+                .thenApply((chatCompletion) -> chatCompletion
+                        .choices()
+                        .getFirst()
+                        .message()
+                        .content()
+                        .orElse("failed to get response"));
+    }
+
+    private ChatCompletionSystemMessageParam toSystemMessage(final String content) {
+        return ChatCompletionSystemMessageParam.builder().content(content).build();
     }
 
     private ChatCompletionUserMessageParam toUserMessage(final String content) {

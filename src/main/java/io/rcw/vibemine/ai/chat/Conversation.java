@@ -10,14 +10,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class Conversation {
 
-    public static final int CHAT_HISTORY_LIMIT = 100;
-
     public record Message(Sender sender, String message, long timestamp) {}
+
+    // constants
+    public static final int CHAT_HISTORY_LIMIT = 6;
 
     public static final Map<UUID, Conversation> conversing = new ConcurrentHashMap<>();
 
+    // immutables fields
     private final List<Message> messages = new LinkedList<>();
     private final UUID playerId, sessionId;
+
+    // mutable fields
+    private String summary;
 
     public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages) {
         this.playerId = playerId;
@@ -77,5 +82,24 @@ public final class Conversation {
 
     public List<Message> getMessages() {
         return this.messages;
+    }
+
+    public String formatChatHistory(int messageCount) {
+        final var builder = new StringBuilder();
+
+        this.messages.stream().sorted(Comparator.comparingLong(Message::timestamp)).limit(
+                Math.min(messageCount, this.messages.size())
+        ).map((msg) -> String.format("%s: %s%n", msg.sender().name(), msg.message()))
+                .forEachOrdered(builder::append);
+
+        return builder.toString();
+    }
+
+    public Optional<String> getSummary() {
+        return Optional.ofNullable(this.summary);
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
     }
 }

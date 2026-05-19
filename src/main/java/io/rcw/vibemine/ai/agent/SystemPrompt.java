@@ -2,6 +2,28 @@ package io.rcw.vibemine.ai.agent;
 
 public interface SystemPrompt {
 
+     String SUMMARIZE_PROMPT = """
+                    You are maintaining memory for a Minecraft server AI agent.
+            
+                    Existing summary:
+                    %s
+            
+                    New conversation turns:
+                    %s
+            
+                    Update the summary.
+            
+                    Rules:
+                    - Keep it concise.
+                    - Preserve facts useful for future replies.
+                    - Preserve user instructions and preferences.
+                    - Preserve active tasks and unresolved bugs.
+                    - Remove greetings, repetition, and one-off chatter.
+                    - Do not answer the user.
+                    - Do not invent facts.
+            
+                    Output only the updated summary.
+            """;
 
     String BASIC_SYSTEM_PROMPT = """
             You are an AI agent living in minecraft. We love markdown, but do not understand markdown. Reply in a rendered minecraft text component. 
