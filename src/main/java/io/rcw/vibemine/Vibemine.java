@@ -7,17 +7,18 @@ import io.rcw.vibemine.ai.agent.impl.OpenAIAgent;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.adapters.ConversationAdapter;
 import io.rcw.vibemine.ai.chat.adapters.MessageAdapter;
+import io.rcw.vibemine.ai.tools.command.CommandTool;
 import io.rcw.vibemine.ai.tools.raytrace.RayTraceTool;
+import io.rcw.vibemine.ai.tools.spawn.SpawnTool;
 import io.rcw.vibemine.commands.VibeCommand;
 import io.rcw.vibemine.handlers.AgentHandler;
 import io.rcw.vibemine.handlers.ChatHandler;
-import io.rcw.vibemine.serialization.BlockSerializer;
-import io.rcw.vibemine.serialization.EntitySerializer;
-import io.rcw.vibemine.serialization.LocationSerializer;
-import io.rcw.vibemine.serialization.UUIDSerializer;
+import io.rcw.vibemine.serialization.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.UUID;
@@ -25,12 +26,13 @@ import java.util.UUID;
 public final class Vibemine extends JavaPlugin {
 
     public static Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(Conversation.class, new ConversationAdapter())
-            .registerTypeAdapter(Conversation.Message.class, new MessageAdapter())
-            .registerTypeAdapter(UUID.class, new UUIDSerializer())
-            .registerTypeAdapter(Location.class, new LocationSerializer())
-            .registerTypeAdapter(Block.class, new BlockSerializer())
-            .registerTypeAdapter(EntitySerializer.class, new EntitySerializer())
+            .registerTypeHierarchyAdapter(Conversation.class, new ConversationAdapter())
+            .registerTypeHierarchyAdapter(Conversation.Message.class, new MessageAdapter())
+            .registerTypeHierarchyAdapter(UUID.class, new UUIDSerializer())
+            .registerTypeHierarchyAdapter(Location.class, new LocationSerializer())
+            .registerTypeHierarchyAdapter(Block.class, new BlockSerializer())
+            .registerTypeHierarchyAdapter(Entity.class, new EntitySerializer())
+            .registerTypeHierarchyAdapter(EntityType.class, new EnumSerializer<EntityType>())
             .setPrettyPrinting().create();
 
     private static Vibemine instance;
@@ -76,6 +78,8 @@ public final class Vibemine extends JavaPlugin {
 
     public void registerTools(Agent agent) {
         agent.registerTool(new RayTraceTool());
+        agent.registerTool(new CommandTool());
+        agent.registerTool(new SpawnTool());
     }
 
 

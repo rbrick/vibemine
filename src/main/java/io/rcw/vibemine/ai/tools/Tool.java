@@ -8,4 +8,8 @@ public interface Tool<T, R> {
     Class<R> outputClass();
 
     R execute(final Player player, T t);
+
+    default String usage() {
+        return "";
+    }
 }

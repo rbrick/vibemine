@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.tools.raytrace;
 
+import com.google.common.reflect.TypeToken;
 import io.rcw.vibemine.ai.tools.Tool;
 import io.rcw.vibemine.annotations.Named;
 import org.bukkit.Location;
@@ -8,9 +9,11 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Named("raytrace")
-public final class RayTraceTool implements Tool<Void, RayTraceTool.RayTraceResponse> {
+public final class RayTraceTool implements Tool<Void, List<RayTraceTool.RayTraceResponse>> {
 
     public record RayTraceResponse(@Nullable Location location, @Nullable  Block block, @Nullable Entity entity) {
         public static RayTraceResponse ofBlock(@Nullable Block block) {
@@ -31,23 +34,26 @@ public final class RayTraceTool implements Tool<Void, RayTraceTool.RayTraceRespo
     }
 
     @Override
-    public Class<RayTraceResponse> outputClass() {
-        return RayTraceResponse.class;
+    public Class<List<RayTraceResponse>> outputClass() {
+        return (Class<List<RayTraceResponse>>) new TypeToken< List<RayTraceResponse>>(){}.getRawType();
     }
 
     @Override
-    public RayTraceResponse execute(Player player, Void unused) {
+    public List<RayTraceResponse> execute(Player player, Void unused) {
         var blocksResult = player.rayTraceBlocks(DISTANCE);
         var entitiesResult = player.rayTraceEntities((int) DISTANCE);
-
-        if (blocksResult != null) {
-            return RayTraceResponse.ofBlock(blocksResult.getHitBlock());
-        }
+        var result = new ArrayList<RayTraceResponse>();
 
         if (entitiesResult != null) {
-            return  RayTraceResponse.ofEntity(entitiesResult.getHitEntity());
+          result.add(RayTraceResponse.ofEntity(entitiesResult.getHitEntity()));
         }
 
-        return null;
+        if (blocksResult != null) {
+            result.add(RayTraceResponse.ofBlock(blocksResult.getHitBlock()));
+        }
+
+        System.out.println(entitiesResult);
+
+        return result;
     }
 }
