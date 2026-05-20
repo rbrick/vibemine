@@ -41,6 +41,9 @@ dependencies {
     implementation("io.github.bonede:tree-sitter-json:0.24.8")
     implementation("io.github.bonede:tree-sitter-javascript:0.23.1")
 
+    // langchain4j - better tool calling
+    implementation("dev.langchain4j:langchain4j-open-ai:1.15.0")
+    implementation("dev.langchain4j:langchain4j:1.15.0")
 }
 
 java {

@@ -80,6 +80,10 @@ public final class Conversation {
         return playerId;
     }
 
+    public Player getPlayer() {
+        return  Bukkit.getPlayer(playerId);
+    }
+
     public List<Message> getMessages() {
         return this.messages;
     }

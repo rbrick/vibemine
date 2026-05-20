@@ -51,13 +51,6 @@ public final class AgentHandler implements Listener {
                 .append(Component.text(" ").style(Style.empty())).appendSpace()
                 .append(llmResponse);
 
-
-
-        System.out.println(
-
-                Vibemine.GSON.toJson(event.getConversation().getMessages())
-        );
-
         event.getPlayer().sendMessage(component);
     }
 }

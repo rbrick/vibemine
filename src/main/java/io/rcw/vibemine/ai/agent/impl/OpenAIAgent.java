@@ -10,6 +10,7 @@ import io.rcw.vibemine.ai.agent.SystemPrompt;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.Sender;
 import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
+import io.rcw.vibemine.ai.tools.Tool;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,15 +44,16 @@ public class OpenAIAgent extends Agent {
         final var conversations = new ArrayList<>(conversation.getMessages());
 
         conversations.sort(Comparator.comparingLong(Conversation.Message::timestamp));
+
         var latestUserMessage = conversations.stream()
                 .filter(message -> message.sender() == Sender.USER)
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new IllegalStateException("No user message found"));
 
-        System.out.println(latestUserMessage.message() + " " + latestUserMessage.timestamp());
-
         return this.summarize(conversation).thenCompose(
                 summary -> {
+
+                    System.out.println(summary);
                     // add the system prompts
                     // the system prompt
                     messages.add(
@@ -84,14 +86,36 @@ public class OpenAIAgent extends Agent {
                             .create(ChatCompletionCreateParams.builder()
                                     .model(this.getModel())
                                     .messages(messages).build())
-                            .thenApply((chatCompletion) -> new AgentResponse(ResponseType.DEBUG, chatCompletion
-                                    .choices()
-                                    .getFirst()
-                                    .message()
-                                    .content()
-                                    .orElse("failed to get response")));
+                            .thenCompose((chat) -> this.processChat(conversation, chat));
                 }
         );
+    }
+
+    private CompletableFuture<AgentResponse> processChat(Conversation conversation, ChatCompletion completion) {
+        var message = completion.choices().getFirst().message();
+
+
+        if (message.toolCalls().isPresent()) {
+
+            message.toolCalls().get().forEach(toolCall -> {
+                // process the tool call
+
+                // for the tool call
+                // get the function call
+
+                // always going to be as function in our case
+                var function = toolCall.asFunction();
+
+                if (function.isValid()) {
+                    // name of the tool
+                    var functionName = function.function().name();
+                    // args
+                    var functionArgs = function.function().arguments();
+                }
+            });
+        }
+
+
     }
 
     @Override
@@ -117,6 +141,17 @@ public class OpenAIAgent extends Agent {
                         .message()
                         .content()
                         .orElse("failed to get response"));
+    }
+
+    @Override
+    public void registerTool(Tool<?, ?> tool) {
+
+
+
+
+
+
+
     }
 
     private ChatCompletionSystemMessageParam toSystemMessage(final String content) {
