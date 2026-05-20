@@ -12,7 +12,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class OpenAITool {
+public final class OpenAITool {
     private final String name;
     private final Tool<?, ?> tool;
     private final ChatCompletionTool openAITool;

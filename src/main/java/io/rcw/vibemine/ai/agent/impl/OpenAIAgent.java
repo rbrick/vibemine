@@ -9,7 +9,6 @@ import io.rcw.vibemine.ai.agent.ResponseType;
 import io.rcw.vibemine.ai.agent.SystemPrompt;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.Sender;
-import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.tools.Tool;
 
@@ -18,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.rcw.vibemine.ai.agent.SystemPrompt.BASIC_SYSTEM_PROMPT;
 
-public class OpenAIAgent extends Agent {
+public final class OpenAIAgent extends Agent {
     private static final String OPEN_AI_SUMMARIZE_MODEL = "gpt-5.4-nano";
 
     private final OpenAIClientAsync  openAIClient;
