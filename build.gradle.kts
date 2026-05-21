@@ -29,8 +29,11 @@ dependencies {
 
     // include openai
     implementation("com.openai:openai-java:4.35.0")
+
+
     // for javascript
-    implementation(platform("org.graalvm.js:js:25.0.3"))
+    implementation("org.graalvm.polyglot:polyglot:25.0.3")
+    implementation("org.graalvm.polyglot:js:25.0.3")
 
     implementation("org.xerial:sqlite-jdbc:3.53.1.0")
 
@@ -50,11 +53,16 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
-
-
  apply(plugin = "com.gradleup.shadow")
 
 tasks {
+
+    shadowJar {
+        dependencies {
+            exclude(dependency("org.graalvm.js:js"))
+        }
+    }
+
     runServer {
         // Configure the Minecraft version for our task.
         // This is the only required configuration besides applying the plugin.
