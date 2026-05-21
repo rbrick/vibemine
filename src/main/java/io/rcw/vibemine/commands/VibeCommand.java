@@ -32,17 +32,14 @@ public class VibeCommand implements BasicCommand {
 //        });
 
 
-        try (var context =
-                     Context.newBuilder("js")
-                             .allowHostAccess(HostAccess.ALL)
-                             .allowHostClassLookup((filter) -> true)
+        var context = Context.newBuilder("js")
+                .allowHostAccess(HostAccess.ALL)
+                .allowHostClassLookup((filter) -> true)
+                .allowAllAccess(true)
+                .build();
 
-                             .allowAllAccess(true).build()) {
-
-
-            var bindings = context.getBindings("js");
-
-            VibeRuntimeBindings.install(bindings, player);
+        var scheduler = VibeRuntimeBindings.install(context.getBindings("js"), player, context);
+        try {
             Value fn = context.eval("js", """
                     (function() {
                       if (!permissions.check(sender, "vibemine.vibe")) return;
@@ -67,6 +64,8 @@ public class VibeCommand implements BasicCommand {
                     """);
 
             fn.execute();
+        } finally {
+            scheduler.rootFinished();
         }
 
 
