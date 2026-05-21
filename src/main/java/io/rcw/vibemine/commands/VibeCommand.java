@@ -43,8 +43,6 @@ public class VibeCommand implements BasicCommand {
             var bindings = context.getBindings("js");
 
             VibeRuntimeBindings.install(bindings, player);
-
-            player.sendAc
             Value fn = context.eval("js", """
                     (function() {
                       if (!permissions.check(sender, "vibemine.vibe")) return;
