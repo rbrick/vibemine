@@ -71,6 +71,14 @@ public final class VibePlayer extends VibeSender {
         return new VibeRayTraceResult(this.player.getWorld().rayTrace(eye, eye.getDirection(), maxDistance, FluidCollisionMode.NEVER, true, 0.25, entity -> !entity.equals(this.player)));
     }
 
+    public void setAllowFlight(boolean allowFlight) {
+        this.player.setAllowFlight(allowFlight);
+    }
+
+    public boolean allowedFlight() {
+        return this.player.getAllowFlight();
+    }
+
     /**
      * JavaScript binding for {@code setFly}.
      */
@@ -220,5 +228,5 @@ public final class VibePlayer extends VibeSender {
      * JavaScript binding for {@code unwrap}.
      */
     @Override
-    public Player unwrap() { return this.player; }
+    Player unwrap() { return this.player; }
 }

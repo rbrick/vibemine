@@ -169,7 +169,7 @@ public final class VibeInventory {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public Inventory unwrap() { return this.inventory; }
+    Inventory unwrap() { return this.inventory; }
 
     private void checkSlot(int slot) {
         if (slot < 0 || slot >= this.inventory.getSize()) {

@@ -68,5 +68,5 @@ public final class VibeBlock {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public Block unwrap() { return this.block; }
+    Block unwrap() { return this.block; }
 }

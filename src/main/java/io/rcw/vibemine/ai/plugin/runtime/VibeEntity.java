@@ -144,5 +144,5 @@ public class VibeEntity {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public Entity unwrap() { return this.entity; }
+    Entity unwrap() { return this.entity; }
 }

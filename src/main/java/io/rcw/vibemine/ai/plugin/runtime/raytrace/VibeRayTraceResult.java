@@ -60,5 +60,5 @@ public final class VibeRayTraceResult {
     /**
      * Returns the underlying Bukkit result.
      */
-    public RayTraceResult unwrap() { return this.result; }
+    RayTraceResult unwrap() { return this.result; }
 }

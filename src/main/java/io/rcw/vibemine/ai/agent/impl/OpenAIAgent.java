@@ -5,7 +5,6 @@ import com.openai.client.okhttp.OpenAIOkHttpClientAsync;
 import com.openai.models.chat.completions.*;
 import io.rcw.vibemine.ai.agent.Agent;
 import io.rcw.vibemine.ai.agent.AgentResponse;
-import io.rcw.vibemine.ai.agent.ResponseType;
 import io.rcw.vibemine.ai.agent.SystemPrompt;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.Sender;
@@ -15,16 +14,13 @@ import io.rcw.vibemine.ai.tools.Tool;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static io.rcw.vibemine.ai.agent.SystemPrompt.BASIC_SYSTEM_PROMPT;
+import static io.rcw.vibemine.ai.agent.SystemPrompt.SYSTEM_PROMPT;
 
 public final class OpenAIAgent extends Agent {
     private static final String OPEN_AI_SUMMARIZE_MODEL = "gpt-5.4-nano";
 
     private final OpenAIClientAsync  openAIClient;
 
-    private final ChatCompletionSystemMessageParam systemPrompt;
-
-    private final ChatCompletionSystemMessageParam basicSystemPrompt = ChatCompletionSystemMessageParam.builder().content(BASIC_SYSTEM_PROMPT).build();
 
     private final Map<String, OpenAITool> tools = new LinkedHashMap<>();
 
@@ -32,8 +28,6 @@ public final class OpenAIAgent extends Agent {
         super(model, apiKey);
         this.openAIClient = OpenAIOkHttpClientAsync.builder().apiKey(apiKey).build();
 
-        this.systemPrompt =
-                ChatCompletionSystemMessageParam.builder().content(SystemPrompt.SYSTEM_PROMPT).build();
     }
 
     @Override
@@ -56,7 +50,7 @@ public final class OpenAIAgent extends Agent {
                     // the system prompt
                     messages.add(
                             ChatCompletionMessageParam.ofSystem(
-                                    toSystemMessage(BASIC_SYSTEM_PROMPT)
+                                    toSystemMessage(SYSTEM_PROMPT)
                             )
                     );
 
@@ -121,8 +115,7 @@ public final class OpenAIAgent extends Agent {
                     .thenCompose((chat) -> this.processChat(conversation, messages, chat, step + 1));
         }
 
-        return CompletableFuture.completedFuture(new AgentResponse(
-                ResponseType.CHAT,
+        return CompletableFuture.completedFuture(AgentResponse.parse(
                 message.content().orElse("failed to get response")
         ));
     }

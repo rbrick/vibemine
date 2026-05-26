@@ -45,5 +45,5 @@ public final class VibeTask {
     /**
      * Returns the underlying Bukkit task.
      */
-    public BukkitTask unwrap() { return this.task; }
+    BukkitTask unwrap() { return this.task; }
 }

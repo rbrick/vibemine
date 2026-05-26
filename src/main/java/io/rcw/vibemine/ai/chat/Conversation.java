@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.chat;
 
+import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.events.conversation.ConversationStartEvent;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
@@ -37,20 +38,21 @@ public final class Conversation {
     }
 
     public static Conversation beginConversation(final Player player) {
-        // start a conversation with the user
-        final UUID conversationKey = player.getUniqueId();
+        return setConversation(player, new Conversation(player.getUniqueId()), true);
+    }
 
-        if (conversing.containsKey(conversationKey)) {
-            return conversing.get(conversationKey);
+    public static Conversation setConversation(final Player player, Conversation conversation, boolean fireStartEvent) {
+        conversing.put(player.getUniqueId(), conversation);
+        if (fireStartEvent) {
+            Bukkit.getScheduler().runTaskAsynchronously(Vibemine.getInstance(), () -> {
+                Bukkit.getPluginManager().callEvent(new ConversationStartEvent(player, conversation));
+            });
         }
-
-        var conversation = new Conversation(conversationKey);
-        conversing.put(conversationKey, conversation);
-
-        // fire a new event for the new conversation - note: only fires ONCE!
-        Bukkit.getPluginManager().callEvent(new ConversationStartEvent(player, conversation));
-
         return conversation;
+    }
+
+    public static void endConversation(final Player player) {
+        conversing.remove(player.getUniqueId());
     }
 
     public static boolean isConversing(final Player player) {

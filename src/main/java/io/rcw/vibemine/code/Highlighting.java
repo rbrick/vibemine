@@ -33,7 +33,19 @@ public final class Highlighting {
     ));
 
 
+    public static Component json(final String code) {
+        return highlight(Language.JSON, code);
+    }
+
+    public static Component javascript(final String code) {
+        return highlight(Language.JAVASCRIPT, code);
+    }
+
     public static Component highlight(final Language language, final String code) {
+        if (code == null || code.isEmpty()) {
+            return Component.empty();
+        }
+
         try (var parser = new TSParser();) {
 
             // set the language to be javascript
@@ -80,7 +92,9 @@ public final class Highlighting {
 
 
     private static Component toComponent(final String sourceCode, final LinkedList<Highlight> highlighted) {
-        highlighted.forEach(highlight -> System.out.printf("%s [%s] (%d->%d)%n", highlight.text, highlight.kind, highlight.start, highlight.end));
+        if (highlighted.isEmpty()) {
+            return Component.text(sourceCode);
+        }
 
         Component highlightedCode = Component.empty();
 

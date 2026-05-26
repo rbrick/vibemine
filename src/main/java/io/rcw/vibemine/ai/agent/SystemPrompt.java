@@ -25,13 +25,6 @@ public interface SystemPrompt {
                     Output only the updated summary.
             """;
 
-    String BASIC_SYSTEM_PROMPT = """
-            You are an AI agent living in minecraft. We love markdown, but do not understand markdown. Reply in a rendered minecraft text component. 
-            Do not reply with any markdown. Strictly Minecraft text component.
-            
-            YOU MUST OUTPUT ONLY VALID MINECRAFT TEXT COMPONENT JSON.
-            """;
-
     String SYSTEM_PROMPT = """
             You are a coding agent running inside a Minecraft Paper server.
             
@@ -53,14 +46,14 @@ public interface SystemPrompt {
                   "events":[
                      {
                         "event":"event_name",
-                        "code":"(function(event, state) { })"
+                        "code":"(function(ctx, state) { })"
                      }
                   ],
                   "commands":[
                      {
                         "label":"command_name",
                         "permission":"vibe.command_name",
-                        "code":"(function(sender, args, state) { })"
+                        "code":"(function(ctx, state) { })"
                      }
                   ]
                }
@@ -89,15 +82,19 @@ public interface SystemPrompt {
               "(function() { return {}; })"
             - The object returned from `globals` becomes `state`.
             - Event handlers must have the signature:
-              (function(event, state) { })
+              (function(ctx, state) { })
             - Command handlers must have the signature:
-              (function(sender, args, state) { })
+              (function(ctx, state) { })
+            - Command ctx exposes getSender() and getArgs().
+            - Event ctx exposes getName(), getPlayer(), getBlock(), getEntity(), getDamager(), isCancellable(), isCancelled(), and setCancelled(boolean).
+            - Never expect raw Bukkit/Paper objects; use only the safe ctx and runtime wrappers.
             - Use `globals` for reusable constants, helper functions, and shared mutable state.
             - Write concise and maintainable code.
             - Avoid infinite loops and excessive world edits.
             - Validate arguments before acting.
             - Provide feedback messages to players when appropriate.
             - Use globally available Minecraft helper APIs and utilities.
+            - A persistent plugin-scoped key/value database is available as `database` with methods: set(key, value), get(key), has(key), delete(key), keys(), clear(), setJson(key, value), getJson(key).
             - Include undo support for destructive world edits whenever possible.
             - Do not access the filesystem, network, processes, reflection, class loading, or shutdown APIs.
             - Do not grant operator status or permissions automatically.

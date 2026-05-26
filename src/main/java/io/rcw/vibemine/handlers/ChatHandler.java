@@ -2,6 +2,7 @@ package io.rcw.vibemine.handlers;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.rcw.vibemine.ai.chat.Conversation;
+import io.rcw.vibemine.ai.chat.ConversationStore;
 import io.rcw.vibemine.ai.chat.Sender;
 import io.rcw.vibemine.ai.events.conversation.PlayerConverseEvent;
 import net.kyori.adventure.text.Component;
@@ -15,8 +16,10 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 public final class ChatHandler implements Listener {
+    private final ConversationStore conversationStore;
 
-    public ChatHandler() {
+    public ChatHandler(ConversationStore conversationStore) {
+        this.conversationStore = conversationStore;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -44,6 +47,7 @@ public final class ChatHandler implements Listener {
                 .appendSpace().append(event.message());
 
         conversation.addMessage(userMessage);
+        conversationStore.save(conversation);
 
         player.sendMessage(component);
 

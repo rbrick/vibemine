@@ -89,5 +89,5 @@ public final class VibeWorld {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public World unwrap() { return this.world; }
+    World unwrap() { return this.world; }
 }

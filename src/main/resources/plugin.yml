@@ -1,5 +1,16 @@
 name: vibemine
 version: '${version}'
 main: io.rcw.vibemine.Vibemine
-api-version: '26.1.2'
+api-version: '1.21'
 load: POSTWORLD
+permissions:
+  vibemine.vibe.start:
+    default: true
+  vibemine.vibe.continue:
+    default: true
+  vibemine.vibe.sessions:
+    default: true
+  vibemine.vibe.stop:
+    default: true
+  vibemine.vibe.plugins:
+    default: op

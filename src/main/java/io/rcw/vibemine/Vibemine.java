@@ -5,8 +5,10 @@ import com.google.gson.GsonBuilder;
 import io.rcw.vibemine.ai.agent.Agent;
 import io.rcw.vibemine.ai.agent.impl.OpenAIAgent;
 import io.rcw.vibemine.ai.chat.Conversation;
+import io.rcw.vibemine.ai.chat.ConversationStore;
 import io.rcw.vibemine.ai.chat.adapters.ConversationAdapter;
 import io.rcw.vibemine.ai.chat.adapters.MessageAdapter;
+import io.rcw.vibemine.ai.plugin.VibedPluginManager;
 import io.rcw.vibemine.ai.tools.command.CommandTool;
 import io.rcw.vibemine.ai.tools.raytrace.RayTraceTool;
 import io.rcw.vibemine.ai.tools.spawn.SpawnTool;
@@ -21,6 +23,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 public final class Vibemine extends JavaPlugin {
@@ -36,6 +39,9 @@ public final class Vibemine extends JavaPlugin {
             .setPrettyPrinting().create();
 
     private static Vibemine instance;
+    private VibedPluginManager vibedPluginManager;
+    private ConversationStore conversationStore;
+    private Path databasePath;
 
 
 
@@ -63,17 +69,43 @@ public final class Vibemine extends JavaPlugin {
 
         this.registerTools(agent);
 
+        try {
+            this.databasePath = getDataFolder().toPath().resolve(config.getString("database.file", "vibe.db"));
+            this.conversationStore = new ConversationStore(databasePath);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Could not open conversation database", exception);
+        }
+
+
+
         // register our chat handler
-        Bukkit.getPluginManager().registerEvents(new ChatHandler(), this);
+        Bukkit.getPluginManager().registerEvents(new ChatHandler(conversationStore), this);
+
+
+        this.vibedPluginManager = new VibedPluginManager(this);
+        this.vibedPluginManager.enable();
 
         // register our agent handler
-        Bukkit.getPluginManager().registerEvents(new AgentHandler(agent), this);
+        Bukkit.getPluginManager().registerEvents(new AgentHandler(agent, vibedPluginManager, conversationStore), this);
 
-        this.registerCommand("vibe", new VibeCommand());
+        this.registerCommand("vibe", new VibeCommand(vibedPluginManager, conversationStore));
     }
 
     @Override
     public void onDisable() {
+        if (conversationStore != null) {
+            Conversation.conversing.values().forEach(conversation -> conversationStore.save(conversation));
+        }
+        if (vibedPluginManager != null) {
+            vibedPluginManager.disable();
+        }
+        if (conversationStore != null) {
+            try {
+                conversationStore.close();
+            } catch (Exception exception) {
+                getLogger().warning("Could not close conversation database: " + exception.getMessage());
+            }
+        }
     }
 
     public void registerTools(Agent agent) {
@@ -82,6 +114,18 @@ public final class Vibemine extends JavaPlugin {
         agent.registerTool(new SpawnTool());
     }
 
+
+    public VibedPluginManager getVibedPluginManager() {
+        return vibedPluginManager;
+    }
+
+    public ConversationStore getConversationStore() {
+        return conversationStore;
+    }
+
+    public Path getDatabasePath() {
+        return databasePath;
+    }
 
     public static Vibemine getInstance() {
         return Vibemine.instance;

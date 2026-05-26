@@ -1,6 +1,6 @@
 package io.rcw.vibemine.ai.plugin;
 
-public interface VibedCode<T extends ExecutionContext> {
+public interface VibedCode<T> {
     /**
      * @return Source code of event
      */

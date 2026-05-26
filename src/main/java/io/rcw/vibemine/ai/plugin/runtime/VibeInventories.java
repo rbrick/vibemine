@@ -9,12 +9,12 @@ import org.bukkit.event.inventory.InventoryType;
  * of exposing raw Bukkit/Paper objects directly.</p>
  */
 public final class VibeInventories {
-    private VibeInventories() {}
+    public VibeInventories() {}
 
     /**
      * JavaScript binding for {@code chest}.
      */
-    public static VibeInventory chest(int rows, String title) {
+    public VibeInventory chest(int rows, String title) {
         if (rows < 1 || rows > 6) throw new IllegalArgumentException("Chest rows must be between 1 and 6");
         return VibeRuntimeCache.inventory(Bukkit.createInventory(null, rows * 9, VibeText.component(title)));
     }
@@ -22,7 +22,7 @@ public final class VibeInventories {
     /**
      * JavaScript binding for {@code typed}.
      */
-    public static VibeInventory typed(String type, String title) {
+    public VibeInventory typed(String type, String title) {
         InventoryType inventoryType = InventoryType.valueOf(type.toUpperCase());
         return VibeRuntimeCache.inventory(Bukkit.createInventory(null, inventoryType, VibeText.component(title)));
     }

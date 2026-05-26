@@ -75,5 +75,5 @@ public final class VibeItem {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public ItemStack unwrap() { return this.item.clone(); }
+    ItemStack unwrap() { return this.item.clone(); }
 }

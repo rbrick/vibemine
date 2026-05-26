@@ -55,5 +55,5 @@ public class VibeSender {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public CommandSender unwrap() { return this.sender; }
+    CommandSender unwrap() { return this.sender; }
 }

@@ -73,7 +73,7 @@ public final class VibeLocation {
     /**
      * JavaScript binding for {@code unwrap}.
      */
-    public Location unwrap() {
+    Location unwrap() {
         return this.location.clone();
     }
 
