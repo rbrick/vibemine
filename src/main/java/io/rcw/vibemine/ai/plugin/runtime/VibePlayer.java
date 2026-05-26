@@ -71,19 +71,58 @@ public final class VibePlayer extends VibeSender {
         return new VibeRayTraceResult(this.player.getWorld().rayTrace(eye, eye.getDirection(), maxDistance, FluidCollisionMode.NEVER, true, 0.25, entity -> !entity.equals(this.player)));
     }
 
+    /**
+     * JavaScript binding for {@code setAllowFlight}.
+     */
     public void setAllowFlight(boolean allowFlight) {
         this.player.setAllowFlight(allowFlight);
+        if (!allowFlight && this.player.isFlying()) this.player.setFlying(false);
     }
 
-    public boolean allowedFlight() {
+    /**
+     * JavaScript binding for {@code getAllowFlight}.
+     */
+    public boolean getAllowFlight() {
         return this.player.getAllowFlight();
+    }
+
+    /**
+     * JavaScript binding for {@code canFly}.
+     */
+    public boolean canFly() {
+        return getAllowFlight();
+    }
+
+    /**
+     * Backwards-compatible JavaScript binding for {@code allowedFlight}.
+     */
+    public boolean allowedFlight() {
+        return getAllowFlight();
+    }
+
+    /**
+     * JavaScript binding for {@code setFlying}.
+     */
+    public void setFlying(boolean flying) {
+        if (flying && !this.player.getAllowFlight()) this.player.setAllowFlight(true);
+        this.player.setFlying(flying);
     }
 
     /**
      * JavaScript binding for {@code setFly}.
      */
     public void setFly(boolean fly) {
-        this.player.setFlying(fly);
+        setFlying(fly);
+    }
+
+    /**
+     * JavaScript binding for {@code toggleFlight}.
+     */
+    public boolean toggleFlight() {
+        boolean enabled = !this.player.getAllowFlight();
+        setAllowFlight(enabled);
+        if (!enabled) this.player.setFlying(false);
+        return enabled;
     }
 
     /**
@@ -201,7 +240,30 @@ public final class VibePlayer extends VibeSender {
     public void giveItem(String material, int amount) {
         Material matched = Material.matchMaterial(material);
         if (matched == null) throw new IllegalArgumentException("Unknown material: " + material);
-        this.player.getInventory().addItem(new ItemStack(matched, amount));
+        this.player.getInventory().addItem(new ItemStack(matched, Math.max(1, amount)));
+    }
+
+    /**
+     * JavaScript binding for {@code giveNamedItem}.
+     */
+    public void giveNamedItem(String material, int amount, String name) {
+        Material matched = Material.matchMaterial(material);
+        if (matched == null) throw new IllegalArgumentException("Unknown material: " + material);
+        VibeItem item = new VibeItem(new ItemStack(matched, Math.max(1, amount)));
+        item.setName(name);
+        give(item);
+    }
+
+    /**
+     * JavaScript binding for {@code giveTaggedItem}.
+     */
+    public void giveTaggedItem(String material, int amount, String name, String key, String value) {
+        Material matched = Material.matchMaterial(material);
+        if (matched == null) throw new IllegalArgumentException("Unknown material: " + material);
+        VibeItem item = new VibeItem(new ItemStack(matched, Math.max(1, amount)));
+        item.setName(name);
+        item.setData(key, value);
+        give(item);
     }
 
     /**

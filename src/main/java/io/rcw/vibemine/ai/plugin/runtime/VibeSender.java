@@ -1,6 +1,7 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 /**
  * JavaScript-safe wrapper/binding for Vibe Sender functionality.
@@ -43,6 +44,18 @@ public class VibeSender {
     public void requirePermission(String permission) {
         if (!hasPermission(permission)) throw new SecurityException("Missing permission: " + permission);
     }
+    /**
+     * JavaScript binding for {@code isPlayer}.
+     */
+    public boolean isPlayer() { return this.sender instanceof Player; }
+
+    /**
+     * JavaScript binding for {@code asPlayer}.
+     */
+    public VibePlayer asPlayer() {
+        return this.sender instanceof Player player ? VibeRuntimeCache.player(player) : null;
+    }
+
     /**
      * Returns whether the sender is op.
      */

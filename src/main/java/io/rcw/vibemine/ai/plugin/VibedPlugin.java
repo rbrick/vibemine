@@ -29,7 +29,7 @@ public final class VibedPlugin {
         this.commands = safeList(schema.commands()).stream()
                 .map(command -> new VibedCommand(this, command.label(), command.permission(), command.code()))
                 .toList();
-        safeList(schema.events()).forEach(event -> events.put(normalize(event.event()), new VibedEvent(this, event.event(), event.code())));
+        safeList(schema.events()).forEach(event -> events.put(VibedPluginManager.normalizeEventName(event.event()), new VibedEvent(this, event.event(), event.code())));
     }
 
     public void enable() {
@@ -38,7 +38,9 @@ public final class VibedPlugin {
                 .allowHostClassLookup(name -> false)
                 .build();
         VibeRuntimeBindings.install(context.getBindings("js"), name());
-        state = context.eval("js", schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals()).execute();
+        String globals = schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals();
+        validateJavaScript(globals);
+        state = context.eval("js", globals).execute();
     }
 
     public void disable() {
@@ -60,14 +62,31 @@ public final class VibedPlugin {
     }
 
     public void executeEvent(String eventName, Event event) {
-        VibedEvent vibedEvent = events.get(normalize(eventName));
-        if (vibedEvent == null) return;
-        runOnMainThread(() -> vibedEvent.executeSource(event, state));
+        String normalizedEventName = VibedPluginManager.normalizeEventName(eventName);
+        VibedEvent vibedEvent = events.get(normalizedEventName);
+        if (vibedEvent == null) {
+            plugin.getLogger().info("Vibed plugin '" + name() + "' has no handler for event '" + normalizedEventName + "'. Registered: " + events.keySet());
+            return;
+        }
+        plugin.getLogger().info("Vibed plugin '" + name() + "' scheduling event '" + normalizedEventName + "' from " + event.getClass().getSimpleName());
+        runOnMainThread(() -> {
+            plugin.getLogger().info("Vibed plugin '" + name() + "' running event '" + normalizedEventName + "'");
+            vibedEvent.executeSource(event, state);
+            plugin.getLogger().info("Vibed plugin '" + name() + "' finished event '" + normalizedEventName + "'");
+        }, event);
     }
 
     Value evalFunction(String sourceCode) {
         if (context == null) throw new IllegalStateException("Plugin is not enabled");
+        validateJavaScript(sourceCode);
         return context.eval("js", sourceCode);
+    }
+
+    private void validateJavaScript(String sourceCode) {
+        if (sourceCode == null || sourceCode.isBlank()) throw new IllegalArgumentException("Missing JavaScript source");
+        if (sourceCode.contains("Polyglot.eval")) {
+            throw new IllegalArgumentException("Generated JavaScript must not call Polyglot.eval or request non-JS languages such as regex");
+        }
     }
 
     private HostAccess safeHostAccess() {
@@ -78,15 +97,29 @@ public final class VibedPlugin {
     }
 
     private void runOnMainThread(Runnable runnable) {
+        runOnMainThread(runnable, null);
+    }
+
+    private void runOnMainThread(Runnable runnable, Event event) {
         Runnable guarded = () -> {
             try {
                 runnable.run();
             } catch (Exception exception) {
                 plugin.getLogger().log(Level.WARNING, "Vibed plugin '" + name() + "' failed", exception);
+                notifyEventPlayer(event, exception);
             }
         };
         if (Bukkit.isPrimaryThread()) guarded.run();
         else Bukkit.getScheduler().runTask(plugin, guarded);
+    }
+
+    private void notifyEventPlayer(Event event, Exception exception) {
+        if (event instanceof org.bukkit.event.player.PlayerEvent playerEvent) {
+            playerEvent.getPlayer().sendMessage(net.kyori.adventure.text.Component.text(
+                    "Vibed plugin '" + name() + "' event failed: " + exception.getMessage(),
+                    net.kyori.adventure.text.format.NamedTextColor.RED
+            ));
+        }
     }
 
     private static String normalize(String value) {

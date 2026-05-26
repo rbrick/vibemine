@@ -9,6 +9,8 @@ import org.bukkit.event.block.BlockEvent;
 import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 
 public final class EventExecutionContext implements ExecutionContext {
     private final String name;
@@ -44,6 +46,7 @@ public final class EventExecutionContext implements ExecutionContext {
 
     public VibeBlock getBlock() {
         if (event instanceof BlockEvent blockEvent) return VibeRuntimeCache.block(blockEvent.getBlock());
+        if (event instanceof PlayerInteractEvent interactEvent) return VibeRuntimeCache.block(interactEvent.getClickedBlock());
         return null;
     }
 
@@ -55,6 +58,42 @@ public final class EventExecutionContext implements ExecutionContext {
     public VibeEntity getDamager() {
         if (event instanceof EntityDamageByEntityEvent damageEvent) return VibeRuntimeCache.entity(damageEvent.getDamager());
         return null;
+    }
+
+    public VibeWorld getWorld() {
+        VibePlayer player = getPlayer();
+        if (player != null) return player.getWorld();
+
+        VibeBlock block = getBlock();
+        if (block != null) return block.getWorld();
+
+        VibeEntity entity = getEntity();
+        if (entity != null) return entity.getWorld();
+
+        VibeEntity damager = getDamager();
+        if (damager != null) return damager.getWorld();
+
+        return null;
+    }
+
+    public String getAction() {
+        if (event instanceof PlayerInteractEvent interactEvent) return interactEvent.getAction().name();
+        return null;
+    }
+
+    public String getHand() {
+        if (event instanceof PlayerInteractEvent interactEvent && interactEvent.getHand() != null) return interactEvent.getHand().name();
+        return null;
+    }
+
+    public boolean isMainHand() {
+        if (event instanceof PlayerInteractEvent interactEvent) return interactEvent.getHand() == EquipmentSlot.HAND;
+        return true;
+    }
+
+    public boolean isOffHand() {
+        if (event instanceof PlayerInteractEvent interactEvent) return interactEvent.getHand() == EquipmentSlot.OFF_HAND;
+        return false;
     }
 
     public String getMessage() {

@@ -11,7 +11,7 @@ public final class VibedEvent implements VibedCode<Event> {
 
     public VibedEvent(VibedPlugin plugin, String eventName, String sourceCode) {
         this.plugin = plugin;
-        this.eventName = eventName;
+        this.eventName = VibedPluginManager.normalizeEventName(eventName);
         this.sourceCode = sourceCode;
     }
 

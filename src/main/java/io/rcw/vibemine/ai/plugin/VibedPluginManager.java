@@ -11,14 +11,17 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
+import org.bukkit.help.GenericCommandHelpTopic;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
 public final class VibedPluginManager {
@@ -51,12 +54,11 @@ public final class VibedPluginManager {
         eventIndex.clear();
         registeredCommands.values().forEach(this::unregisterCommand);
         registeredCommands.clear();
-        refreshPlayerCommandTrees();
         if (listener != null) HandlerList.unregisterAll(listener);
     }
 
     public Collection<VibedPlugin> plugins() {
-        return Collections.unmodifiableCollection(plugins.values());
+        return List.copyOf(plugins.values());
     }
 
     public void loadAll() {
@@ -73,7 +75,7 @@ public final class VibedPluginManager {
         }
     }
 
-    public VibedPlugin saveAndLoad(String json) throws IOException {
+    public synchronized VibedPlugin saveAndLoad(String json) throws IOException {
         VibedPluginSchema schema = parseSchema(json);
         String name = normalizeName(schema.name());
         Path path = pluginsDirectory.resolve(name + ".json");
@@ -108,7 +110,7 @@ public final class VibedPluginManager {
         }
     }
 
-    public VibedPlugin load(Path path) throws IOException {
+    public synchronized VibedPlugin load(Path path) throws IOException {
         VibedPluginSchema schema = parseSchema(Files.readString(path, StandardCharsets.UTF_8));
         String name = normalizeName(schema.name());
         if (plugins.containsKey(name)) {
@@ -117,24 +119,36 @@ public final class VibedPluginManager {
         VibedPlugin vibedPlugin = new VibedPlugin(plugin, schema);
         vibedPlugin.enable();
         plugins.put(vibedPlugin.name(), vibedPlugin);
-        vibedPlugin.events().forEach(event -> eventIndex.computeIfAbsent(event.eventName(), ignored -> new ArrayList<>()).add(vibedPlugin));
+        plugin.getLogger().info("Loaded vibed plugin '" + vibedPlugin.name() + "' with " + vibedPlugin.events().size() + " events and " + vibedPlugin.commands().size() + " commands");
+        vibedPlugin.events().forEach(event -> {
+            String normalizedEventName = normalizeEventName(event.eventName());
+            eventIndex.computeIfAbsent(normalizedEventName, ignored -> new CopyOnWriteArrayList<>()).add(vibedPlugin);
+            plugin.getLogger().info("Registered vibed event '" + normalizedEventName + "' for plugin '" + vibedPlugin.name() + "'");
+        });
         vibedPlugin.commands().forEach(command -> registerCommand(vibedPlugin, command));
         return vibedPlugin;
     }
 
-    public boolean unload(String name) {
+    public synchronized boolean unload(String name) {
         VibedPlugin removed = plugins.remove(normalizeName(name));
         if (removed == null) return false;
         removed.disable();
-        eventIndex.values().forEach(list -> list.remove(removed));
+        eventIndex.entrySet().removeIf(entry -> {
+            entry.getValue().remove(removed);
+            return entry.getValue().isEmpty();
+        });
         removed.commands().forEach(command -> Optional.ofNullable(registeredCommands.remove(command.label())).ifPresent(this::unregisterCommand));
         refreshPlayerCommandTrees();
         return true;
     }
 
     void dispatch(String eventName, Event event) {
-        for (VibedPlugin vibedPlugin : eventIndex.getOrDefault(eventName, List.of())) {
-            vibedPlugin.executeEvent(eventName, event);
+        String normalizedEventName = normalizeEventName(eventName);
+        List<VibedPlugin> listeners = List.copyOf(eventIndex.getOrDefault(normalizedEventName, List.of()));
+        plugin.getLogger().info("Dispatching vibed event '" + normalizedEventName + "' from " + event.getClass().getSimpleName() + " to " + listeners.size() + " plugin(s)");
+        for (VibedPlugin vibedPlugin : listeners) {
+            plugin.getLogger().info("Executing vibed event '" + normalizedEventName + "' for plugin '" + vibedPlugin.name() + "'");
+            vibedPlugin.executeEvent(normalizedEventName, event);
         }
     }
 
@@ -159,24 +173,78 @@ public final class VibedPluginManager {
         bukkitCommand.setPermissionMessage("You do not have permission to use this vibed command.");
 
         CommandMap commandMap = Bukkit.getCommandMap();
-        commandMap.register("vibemine", bukkitCommand);
+        synchronized (commandMap) {
+            commandMap.register("vibemine", bukkitCommand);
+            Bukkit.getCommandMap().getKnownCommands().put(command.label(), bukkitCommand);
+            Bukkit.getCommandMap().getKnownCommands().put("vibemine:" + command.label(), bukkitCommand);
+        }
         registeredCommands.put(command.label(), bukkitCommand);
+        registerHelpTopic(bukkitCommand);
+        plugin.getLogger().info("Registered vibed command '/" + command.label() + "' in Bukkit CommandMap and HelpMap");
         refreshPlayerCommandTrees();
     }
 
     private void unregisterCommand(String label) {
         Optional.ofNullable(registeredCommands.remove(label)).ifPresent(this::unregisterCommand);
-        Bukkit.getCommandMap().getKnownCommands().remove(label);
-        Bukkit.getCommandMap().getKnownCommands().remove("vibemine:" + label);
+        synchronized (Bukkit.getCommandMap()) {
+            Bukkit.getCommandMap().getKnownCommands().remove(label);
+            Bukkit.getCommandMap().getKnownCommands().remove("vibemine:" + label);
+        }
+        unregisterHelpTopic(label);
     }
 
     private void unregisterCommand(Command command) {
         command.unregister(Bukkit.getCommandMap());
-        Bukkit.getCommandMap().getKnownCommands().entrySet().removeIf(entry -> entry.getValue() == command);
+        synchronized (Bukkit.getCommandMap()) {
+            Map<String, Command> knownCommands = Bukkit.getCommandMap().getKnownCommands();
+            List<String> labelsToRemove = knownCommands.entrySet().stream()
+                    .filter(entry -> entry.getValue() == command)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            labelsToRemove.forEach(knownCommands::remove);
+        }
+        unregisterHelpTopic(command.getName());
+    }
+
+    private void registerHelpTopic(Command command) {
+        try {
+            unregisterHelpTopic(command.getName());
+            Bukkit.getHelpMap().addTopic(new GenericCommandHelpTopic(command));
+        } catch (Exception exception) {
+            plugin.getLogger().log(Level.WARNING, "Could not register help topic for /" + command.getName(), exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void unregisterHelpTopic(String label) {
+        String normalizedLabel = label.startsWith("/") ? label : "/" + label;
+        try {
+            for (Field field : Bukkit.getHelpMap().getClass().getDeclaredFields()) {
+                if (!Map.class.isAssignableFrom(field.getType())) continue;
+                field.setAccessible(true);
+                Map<Object, Object> map = (Map<Object, Object>) field.get(Bukkit.getHelpMap());
+                map.remove(normalizedLabel);
+                map.remove(label);
+                map.remove("vibemine:" + label);
+                map.remove("/vibemine:" + label);
+            }
+        } catch (Exception exception) {
+            plugin.getLogger().log(Level.FINE, "Could not unregister help topic for /" + label, exception);
+        }
     }
 
     private void refreshPlayerCommandTrees() {
-        Bukkit.getOnlinePlayers().forEach(Player::updateCommands);
+        if (!plugin.isEnabled()) return;
+
+        // Delay command-tree refresh until after command map mutation has completed. Calling
+        // updateCommands inline during hot-swap can race Paper's async command-tree builder.
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            try {
+                Bukkit.getOnlinePlayers().forEach(Player::updateCommands);
+            } catch (Exception exception) {
+                plugin.getLogger().log(Level.WARNING, "Could not refresh player command trees", exception);
+            }
+        }, 2L);
     }
 
     private VibedPluginSchema parseSchema(String json) {
@@ -191,5 +259,10 @@ public final class VibedPluginManager {
 
     static String normalizeName(String name) {
         return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_");
+    }
+
+    static String normalizeEventName(String eventName) {
+        if (eventName == null) return "";
+        return eventName.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
     }
 }

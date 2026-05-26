@@ -9,9 +9,13 @@ import io.rcw.vibemine.ai.chat.ConversationStore;
 import io.rcw.vibemine.ai.chat.adapters.ConversationAdapter;
 import io.rcw.vibemine.ai.chat.adapters.MessageAdapter;
 import io.rcw.vibemine.ai.plugin.VibedPluginManager;
+import io.rcw.vibemine.ai.tools.api.ApiReferenceTool;
 import io.rcw.vibemine.ai.tools.command.CommandTool;
+import io.rcw.vibemine.ai.tools.message.SendMessageTool;
+import io.rcw.vibemine.ai.tools.plugin.PluginContextTool;
 import io.rcw.vibemine.ai.tools.raytrace.RayTraceTool;
 import io.rcw.vibemine.ai.tools.spawn.SpawnTool;
+import io.rcw.vibemine.ai.tools.syntax.SyntaxHighlightTool;
 import io.rcw.vibemine.commands.VibeCommand;
 import io.rcw.vibemine.handlers.AgentHandler;
 import io.rcw.vibemine.handlers.ChatHandler;
@@ -112,6 +116,10 @@ public final class Vibemine extends JavaPlugin {
         agent.registerTool(new RayTraceTool());
         agent.registerTool(new CommandTool());
         agent.registerTool(new SpawnTool());
+        agent.registerTool(new SyntaxHighlightTool());
+        agent.registerTool(new SendMessageTool());
+        agent.registerTool(new ApiReferenceTool());
+        agent.registerTool(new PluginContextTool());
     }
 
 
