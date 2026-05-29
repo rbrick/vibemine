@@ -1,7 +1,9 @@
 package io.rcw.vibemine.handlers;
 
 import io.rcw.vibemine.Vibemine;
+import io.rcw.vibemine.ai.TokenEstimator;
 import io.rcw.vibemine.ai.agent.Agent;
+import io.rcw.vibemine.ai.agent.SystemPrompt;
 import io.rcw.vibemine.ai.agent.ResponseType;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.ConversationStore;
@@ -57,7 +59,7 @@ public final class AgentHandler implements Listener {
 
     @EventHandler
     public void onConverse(final PlayerConverseEvent event) {
-        startThinkingActionBar(event.getPlayer());
+        startThinkingActionBar(event.getPlayer(), event.getConversation());
         agent.generateFromConversation(event.getConversation()).whenComplete((agentResponse, throwable) -> {
             stopThinkingActionBar(event.getPlayer());
             if (throwable != null) {
@@ -137,8 +139,9 @@ public final class AgentHandler implements Listener {
         sendAgentMessage(event, Component.text(agentResponse.responseText()));
     }
 
-    private void startThinkingActionBar(Player player) {
+    private void startThinkingActionBar(Player player, Conversation conversation) {
         stopThinkingActionBar(player);
+        int estimatedPromptTokens = estimatePromptTokens(conversation);
         int[] tick = {0};
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), () -> {
             if (!player.isOnline()) {
@@ -148,10 +151,22 @@ public final class AgentHandler implements Listener {
 
             int currentTick = tick[0]++;
             String message = THINKING_MESSAGES.get((currentTick / FUN_MESSAGE_DURATION_TICKS) % THINKING_MESSAGES.size());
+            String tokenText = "~" + TokenEstimator.compact(estimatedPromptTokens) + " prompt tokens";
             double gradientPhase = Math.sin((currentTick / FUN_GRADIENT_CYCLE_TICKS) * Math.PI * 2.0D);
-            player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:" + FUN_MESSAGE_GRADIENT + ":" + gradientPhase + ">" + message + "</gradient></bold>"));
+            player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:" + FUN_MESSAGE_GRADIENT + ":" + gradientPhase + ">" + message + "</gradient></bold> <gray>(" + tokenText + ")</gray>"));
         }, 0L, 1L);
         thinkingActionBars.put(player.getUniqueId(), task);
+    }
+
+    private int estimatePromptTokens(Conversation conversation) {
+        StringBuilder prompt = new StringBuilder(SystemPrompt.SYSTEM_PROMPT).append('\n');
+        conversation.getSummary().ifPresent(summary -> prompt.append(summary).append('\n'));
+        prompt.append(conversation.formatChatHistory(Conversation.CHAT_HISTORY_LIMIT)).append('\n');
+        conversation.getMessages().stream()
+                .filter(message -> message.sender() == Sender.USER)
+                .reduce((first, second) -> second)
+                .ifPresent(message -> prompt.append(message.message()));
+        return TokenEstimator.estimate(prompt.toString());
     }
 
     private void stopThinkingActionBar(Player player) {

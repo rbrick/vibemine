@@ -1,9 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EntityType;
 
@@ -153,12 +150,28 @@ public final class VibeWorld {
 
     private String normalizeSound(String sound) {
         if (sound == null || sound.isBlank()) throw new IllegalArgumentException("Sound cannot be blank");
-        try {
-            return Sound.valueOf(sound.toUpperCase()).getKey().asString();
-        } catch (IllegalArgumentException ignored) {
-            String normalized = sound.toLowerCase();
-            return normalized.contains(":") ? normalized : "minecraft:" + normalized;
+
+        String normalized = sound.trim();
+        if (normalized.contains(":")) return normalized.toLowerCase();
+
+        // Avoid Bukkit's legacy Sound enum here; Paper has marked that API for removal.
+        // Accept modern keys (block.note_block.pling) and best-effort legacy enum names
+        // (BLOCK_NOTE_BLOCK_PLING -> minecraft:block.note_block.pling).
+        if (normalized.indexOf('.') < 0 && normalized.equals(normalized.toUpperCase())) {
+            normalized = legacySoundNameToKeyPath(normalized);
+        } else {
+            normalized = normalized.toLowerCase();
         }
+        return "minecraft:" + normalized;
+    }
+
+    private String legacySoundNameToKeyPath(String sound) {
+        String lower = sound.toLowerCase();
+        int first = lower.indexOf('_');
+        int last = lower.lastIndexOf('_');
+        if (first < 0) return lower;
+        if (first == last) return lower.substring(0, first) + "." + lower.substring(first + 1);
+        return lower.substring(0, first) + "." + lower.substring(first + 1, last) + "." + lower.substring(last + 1);
     }
 
     private BlockData parseBlockData(String blockData) {

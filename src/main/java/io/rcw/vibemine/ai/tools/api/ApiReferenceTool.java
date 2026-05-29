@@ -124,7 +124,7 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
     }
 
     private static String notesFor(Class<?> type) {
-        if (type == CommandExecutionContext.class) return "Command handlers receive this as ctx. Use ctx.getSender().isPlayer() before ctx.getSender().asPlayer().";
+        if (type == CommandExecutionContext.class) return "Command handlers receive this as ctx. Methods: getSender(), getPlayer(), getArgs(), getWorld(). getPlayer() and getWorld() return null for non-player senders; use ctx.getSender().isPlayer() before using them.";
         if (type == EventExecutionContext.class) return "Event handlers receive this as ctx. Some getters return null depending on event type.";
         if (type == VibePlayer.class) return "VibePlayer extends VibeSender, so sender methods like sendMessage and hasPermission are also available. Permission helpers: setPermission, grantPermission, denyPermission, unsetPermission, clearPermissions, setPermissions(map), replacePermissions(map), applyWildcardPermission(wildcard, value).";
         if (type == VibeWorld.class) return "World utilities include get/set block helpers, spawnEntity, lightning, and playSound(location, sound, volume, pitch) / playSoundAt(x, y, z, sound, volume, pitch).";
