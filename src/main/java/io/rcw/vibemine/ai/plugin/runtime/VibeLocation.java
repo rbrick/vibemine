@@ -1,6 +1,7 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 
 /**
  * JavaScript-safe wrapper/binding for Vibe Location functionality.
@@ -71,11 +72,19 @@ public final class VibeLocation {
     }
 
     /**
+     * JavaScript binding for {@code getWorld}
+     */
+    public VibeWorld getWorld() {
+        return VibeRuntimeCache.world(this.location.getWorld());
+    }
+
+    /**
      * JavaScript binding for {@code unwrap}.
      */
     Location unwrap() {
         return this.location.clone();
     }
+
 
     /**
      * JavaScript binding for {@code toString}.

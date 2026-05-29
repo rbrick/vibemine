@@ -3,7 +3,8 @@ package io.rcw.vibemine.ai.tools.api;
 import io.rcw.vibemine.ai.plugin.context.CommandExecutionContext;
 import io.rcw.vibemine.ai.plugin.context.EventExecutionContext;
 import io.rcw.vibemine.ai.plugin.runtime.*;
-import io.rcw.vibemine.ai.plugin.runtime.database.VibeDatabase;
+import io.rcw.vibemine.ai.plugin.runtime.database.VibeKeyStore;
+import io.rcw.vibemine.ai.plugin.runtime.database.VibeTable;
 import io.rcw.vibemine.ai.plugin.runtime.permissions.VibePermissions;
 import io.rcw.vibemine.ai.plugin.runtime.raytrace.VibeRayTraceResult;
 import io.rcw.vibemine.ai.plugin.runtime.scheduler.VibeScheduler;
@@ -94,12 +95,14 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
         register(types, VibeWorld.class, "world");
         register(types, VibeLocation.class, "location");
         register(types, VibeBlock.class, "block");
+        register(types, VibeBlockSnapshot.class, "block_state", "block_snapshot", "snapshot");
         register(types, VibeEntity.class, "entity");
         register(types, VibeItem.class, "item");
         register(types, VibeInventory.class, "inventory");
         register(types, VibeInventories.class, "inventories");
         register(types, VibeServer.class, "server");
-        register(types, VibeDatabase.class, "database");
+        register(types, VibeKeyStore.class, "database", "keystore", "key_store");
+        register(types, VibeTable.class, "table");
         register(types, VibePermissions.class, "permissions");
         register(types, VibeRayTraceResult.class, "raytrace", "ray_trace_result");
         register(types, VibeScheduler.class, "scheduler");
@@ -117,14 +120,18 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
     }
 
     private static String notes() {
-        return "Ask for a specific type, e.g. {\"type\":\"VibePlayer\"}, {\"type\":\"CommandExecutionContext\"}, or {\"type\":\"database\"}. Global bindings include server, inventories, permissions, scheduler, and database.";
+        return "Ask for a specific type, e.g. {\"type\":\"VibePlayer\"}, {\"type\":\"CommandExecutionContext\"}, {\"type\":\"database\"}, or {\"type\":\"table\"}. Global bindings include server, inventories, permissions, scheduler, and database.";
     }
 
     private static String notesFor(Class<?> type) {
         if (type == CommandExecutionContext.class) return "Command handlers receive this as ctx. Use ctx.getSender().isPlayer() before ctx.getSender().asPlayer().";
         if (type == EventExecutionContext.class) return "Event handlers receive this as ctx. Some getters return null depending on event type.";
-        if (type == VibePlayer.class) return "VibePlayer extends VibeSender, so sender methods like sendMessage and hasPermission are also available.";
-        if (type == VibeDatabase.class) return "Plugin-scoped persistent key/value storage. setJson/getJson can store structured JSON-like values.";
+        if (type == VibePlayer.class) return "VibePlayer extends VibeSender, so sender methods like sendMessage and hasPermission are also available. Use playSound(sound, volume, pitch) for player-local sounds.";
+        if (type == VibeWorld.class) return "World utilities include get/set block helpers, spawnEntity, lightning, and playSound(location, sound, volume, pitch) / playSoundAt(x, y, z, sound, volume, pitch).";
+        if (type == VibeBlock.class) return "Use getBlockData/setBlockData and captureState/restoreState when preserving rotations, door halves, waterlogging, chest contents, signs, etc.";
+        if (type == VibeBlockSnapshot.class) return "Captured block state for safe undo/restore. It preserves full block data and tile-entity state where Bukkit supports it.";
+        if (type == VibeKeyStore.class) return "Plugin-scoped persistent storage. Key/value methods remain available; createTable/table returns VibeTable for persistent JSON objects.";
+        if (type == VibeTable.class) return "Persistent JSON object table keyed by string id. Good for extensible records like factions, towns, quests, or shops.";
         return notes();
     }
 
@@ -132,7 +139,7 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
     public String usage() {
         return """
                 Reveal the safe VibePlugin JavaScript API exposed to generated plugins.
-                Call this before using unfamiliar ctx, player, world, server, database, scheduler, inventory, item, entity, or block APIs.
+                Call this before using unfamiliar ctx, player, world, server, database, table, scheduler, inventory, item, entity, or block APIs.
                 Input: {"type":"VibePlayer"} or {"type":"player"}. Omit type to list available API types.
                 """;
     }

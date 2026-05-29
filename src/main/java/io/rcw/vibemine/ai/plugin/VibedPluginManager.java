@@ -18,6 +18,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,6 +60,44 @@ public final class VibedPluginManager {
 
     public Collection<VibedPlugin> plugins() {
         return List.copyOf(plugins.values());
+    }
+
+    public List<String> pluginNames() {
+        try {
+            Files.createDirectories(pluginsDirectory);
+            try (var paths = Files.list(pluginsDirectory)) {
+                return paths
+                        .filter(path -> path.toString().endsWith(".json"))
+                        .map(path -> path.getFileName().toString().replaceFirst("\\.json$", ""))
+                        .sorted()
+                        .toList();
+            }
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.WARNING, "Failed to list persisted vibed plugins", exception);
+            return List.of();
+        }
+    }
+
+    public boolean isEnabled(String name) {
+        return plugins.containsKey(normalizeName(name));
+    }
+
+    public synchronized VibedPlugin enablePlugin(String name) throws IOException {
+        String normalized = normalizeName(name);
+        Path path = pluginsDirectory.resolve(normalized + ".json");
+        if (!Files.exists(path)) throw new NoSuchFileException(normalized + ".json");
+        return load(path);
+    }
+
+    public synchronized boolean disablePlugin(String name) {
+        return unload(name);
+    }
+
+    public synchronized boolean deletePlugin(String name) throws IOException {
+        String normalized = normalizeName(name);
+        boolean wasLoaded = unload(normalized);
+        Path path = pluginsDirectory.resolve(normalized + ".json");
+        return Files.deleteIfExists(path) || wasLoaded;
     }
 
     public void loadAll() {

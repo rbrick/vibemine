@@ -14,3 +14,9 @@ permissions:
     default: true
   vibemine.vibe.plugins:
     default: op
+  vibemine.vibe.plugins.enable:
+    default: op
+  vibemine.vibe.plugins.disable:
+    default: op
+  vibemine.vibe.plugins.delete:
+    default: op

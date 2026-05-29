@@ -1,6 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
-import io.rcw.vibemine.ai.plugin.runtime.database.VibeDatabase;
+import io.rcw.vibemine.ai.plugin.runtime.database.VibeKeyStore;
 import io.rcw.vibemine.ai.plugin.runtime.permissions.VibePermissions;
 import io.rcw.vibemine.ai.plugin.runtime.scheduler.VibeScheduler;
 import org.bukkit.command.CommandSender;
@@ -31,7 +31,7 @@ public final class VibeRuntimeBindings {
         bindings.putMember("inventories", new VibeInventories());
         bindings.putMember("permissions", new VibePermissions());
         bindings.putMember("scheduler", scheduler);
-        bindings.putMember("database", new VibeDatabase("global"));
+        bindings.putMember("database", new VibeKeyStore("global"));
     }
 
     /**
@@ -39,7 +39,7 @@ public final class VibeRuntimeBindings {
      */
     public static void install(Value bindings, String namespace) {
         install(bindings);
-        bindings.putMember("database", new VibeDatabase(namespace));
+        bindings.putMember("database", new VibeKeyStore(namespace));
     }
 
     public static void install(Value bindings, CommandSender sender) {

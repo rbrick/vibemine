@@ -34,6 +34,7 @@ dependencies {
     // for javascript
     implementation("org.graalvm.polyglot:polyglot:25.0.3")
     implementation("org.graalvm.polyglot:js:25.0.3")
+    implementation("org.graalvm.regex:regex:25.0.3")
 
     implementation("org.xerial:sqlite-jdbc:3.53.1.0")
 
@@ -58,9 +59,22 @@ java {
 tasks {
 
     shadowJar {
+        // Graal languages are discovered with ServiceLoader. Allow duplicate service
+        // descriptors through so Shadow can merge them, but keep normal duplicate files
+        // like META-INF/LICENSE excluded for Paper's plugin remapper.
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        filesMatching("META-INF/services/**") {
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        }
+        mergeServiceFiles()
+
         dependencies {
             exclude(dependency("org.graalvm.js:js"))
         }
+    }
+
+    named("build") {
+        dependsOn("shadowJar")
     }
 
     runServer {

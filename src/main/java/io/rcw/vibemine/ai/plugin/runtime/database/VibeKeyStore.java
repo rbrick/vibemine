@@ -5,14 +5,18 @@ import io.rcw.vibemine.Vibemine;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
- * Small JavaScript-safe key/value store for vibed plugins.
+ * JavaScript-safe plugin-scoped persistent storage.
+ * Keeps the original key/value API and also creates JSON object tables.
  */
-public final class VibeDatabase {
+public final class VibeKeyStore {
+    private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z][A-Za-z0-9_]{0,63}");
     private final String namespace;
 
-    public VibeDatabase(String namespace) {
+    public VibeKeyStore(String namespace) {
         this.namespace = namespace == null || namespace.isBlank() ? "global" : namespace;
         migrate();
     }
@@ -33,7 +37,7 @@ public final class VibeDatabase {
             statement.setLong(4, System.currentTimeMillis());
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not save database value", exception);
+            throw new IllegalStateException("Could not save key/value", exception);
         }
     }
 
@@ -48,7 +52,7 @@ public final class VibeDatabase {
                 return results.next() ? results.getString("value") : null;
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not read database value", exception);
+            throw new IllegalStateException("Could not read key/value", exception);
         }
     }
 
@@ -65,7 +69,7 @@ public final class VibeDatabase {
             statement.setString(2, key);
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not delete database value", exception);
+            throw new IllegalStateException("Could not delete key/value", exception);
         }
     }
 
@@ -80,7 +84,7 @@ public final class VibeDatabase {
                 return keys;
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not list database keys", exception);
+            throw new IllegalStateException("Could not list keys", exception);
         }
     }
 
@@ -91,7 +95,7 @@ public final class VibeDatabase {
             statement.setString(1, namespace);
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not clear database namespace", exception);
+            throw new IllegalStateException("Could not clear key/value namespace", exception);
         }
     }
 
@@ -102,6 +106,43 @@ public final class VibeDatabase {
     public Object getJson(String key) {
         String value = get(key);
         return value == null ? null : Vibemine.GSON.fromJson(value, Object.class);
+    }
+
+    /** Create/open a persistent JSON object table for this plugin namespace. */
+    public VibeTable createTable(String name) {
+        requireTableName(name);
+        VibeTable table = new VibeTable(namespace, normalizedTableName(name));
+        table.create();
+        return table;
+    }
+
+    /** Open a table, creating it if needed. Alias for createTable for generated scripts. */
+    public VibeTable table(String name) {
+        return createTable(name);
+    }
+
+    public void dropTable(String name) {
+        requireTableName(name);
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DROP TABLE IF EXISTS " + sqlTableName(namespace, name));
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not drop table", exception);
+        }
+    }
+
+    public List<String> tables() {
+        try (Connection connection = connection(); PreparedStatement statement = connection.prepareStatement(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE ? ORDER BY name"
+        )) {
+            statement.setString(1, tablePrefix(namespace) + "%");
+            try (ResultSet results = statement.executeQuery()) {
+                List<String> tables = new ArrayList<>();
+                while (results.next()) tables.add(results.getString("name").substring(tablePrefix(namespace).length()));
+                return tables;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not list tables", exception);
+        }
     }
 
     private void migrate() {
@@ -116,15 +157,34 @@ public final class VibeDatabase {
                     )
                     """);
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not initialize vibed plugin database", exception);
+            throw new IllegalStateException("Could not initialize key store", exception);
         }
     }
 
-    private Connection connection() throws SQLException {
+    static Connection connection() throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:" + Vibemine.getInstance().getDatabasePath());
     }
 
+    static String sqlTableName(String namespace, String table) {
+        return tablePrefix(namespace) + normalizedTableName(table);
+    }
+
+    private static String tablePrefix(String namespace) {
+        return "vibed_obj_" + normalizedTableName(namespace) + "_";
+    }
+
+    static String normalizedTableName(String name) {
+        String normalized = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
+        return Character.isLetter(normalized.charAt(0)) ? normalized : "n_" + normalized;
+    }
+
+    static void requireTableName(String name) {
+        if (name == null || !SAFE_NAME.matcher(name).matches()) {
+            throw new IllegalArgumentException("Table names must start with a letter and contain only letters, numbers, and underscores (max 64 chars)");
+        }
+    }
+
     private void requireKey(String key) {
-        if (key == null || key.isBlank()) throw new IllegalArgumentException("Database key cannot be blank");
+        if (key == null || key.isBlank()) throw new IllegalArgumentException("Key cannot be blank");
     }
 }

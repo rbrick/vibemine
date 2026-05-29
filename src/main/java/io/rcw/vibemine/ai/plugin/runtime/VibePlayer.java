@@ -272,6 +272,35 @@ public final class VibePlayer extends VibeSender {
     public void give(VibeItem item) { this.player.getInventory().addItem(item.unwrap()); }
 
     /**
+     * JavaScript binding for {@code playSound} at the player's current location.
+     */
+    public void playSound(String sound, float volume, float pitch) {
+        this.player.playSound(this.player.getLocation(), sound, volume, pitch);
+    }
+
+    /**
+     * JavaScript binding for {@code playSound} at the player's current location with default volume/pitch.
+     */
+    public void playSound(String sound) {
+        playSound(sound, 1.0f, 1.0f);
+    }
+
+    /**
+     * JavaScript binding for {@code playSoundAt}.
+     */
+    public void playSoundAt(VibeLocation location, String sound, float volume, float pitch) {
+        if (location == null) throw new IllegalArgumentException("Location cannot be null");
+        this.player.playSound(location.unwrap(), sound, volume, pitch);
+    }
+
+    /**
+     * JavaScript binding for {@code playSoundAt} with default volume/pitch.
+     */
+    public void playSoundAt(VibeLocation location, String sound) {
+        playSoundAt(location, sound, 1.0f, 1.0f);
+    }
+
+    /**
      * Sends a formatted message to the player's action bar.
      */
     public void sendActionBar(String message) { this.player.sendActionBar(VibeText.component(message)); }
