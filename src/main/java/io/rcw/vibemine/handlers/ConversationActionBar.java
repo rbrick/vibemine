@@ -60,7 +60,7 @@ public final class ConversationActionBar {
         Conversation conversation = Conversation.forPlayer(player);
         UUID playerId = player.getUniqueId();
         if (tick % 20 == 0 || !tokenTextCache.containsKey(playerId)) {
-            tokenTextCache.put(playerId, "~" + TokenEstimator.compact(estimatePromptTokens(conversation)) + " prompt tokens");
+            tokenTextCache.put(playerId, estimateTokenText(conversation));
         }
         String tokenText = tokenTextCache.get(playerId);
         if (thinking.containsKey(player.getUniqueId())) {
@@ -74,14 +74,29 @@ public final class ConversationActionBar {
         player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:" + FUN_MESSAGE_GRADIENT + ":" + gradientPhase + ">Vibe session</gradient></bold> <dark_gray>•</dark_gray> <gray>" + tokenText + "</gray>"));
     }
 
-    private int estimatePromptTokens(Conversation conversation) {
-        StringBuilder prompt = new StringBuilder(SystemPrompt.SYSTEM_PROMPT).append('\n');
-        conversation.getSummary().ifPresent(summary -> prompt.append(summary).append('\n'));
-        prompt.append(conversation.formatChatHistory(Conversation.CHAT_HISTORY_LIMIT)).append('\n');
+    private String estimateTokenText(Conversation conversation) {
+        TokenMeasurement measurement = estimateTokens(conversation);
+        return "~" + TokenEstimator.compact(measurement.inputTokens()) + " in / ~"
+                + TokenEstimator.compact(measurement.outputTokens()) + " out tokens";
+    }
+
+    private TokenMeasurement estimateTokens(Conversation conversation) {
+        StringBuilder input = new StringBuilder(SystemPrompt.SYSTEM_PROMPT).append('\n');
+        conversation.getSummary().ifPresent(summary -> input.append(summary).append('\n'));
         conversation.getMessages().stream()
                 .filter(message -> message.sender() == Sender.USER)
-                .reduce((first, second) -> second)
-                .ifPresent(message -> prompt.append(message.message()));
-        return TokenEstimator.estimate(prompt.toString());
+                .forEach(message -> input.append(message.message()).append('\n'));
+
+        StringBuilder output = new StringBuilder();
+        conversation.getMessages().stream()
+                .filter(message -> message.sender() == Sender.AGENT)
+                .forEach(message -> output.append(message.message()).append('\n'));
+
+        return new TokenMeasurement(
+                TokenEstimator.estimate(input.toString()),
+                TokenEstimator.estimate(output.toString())
+        );
     }
+
+    private record TokenMeasurement(int inputTokens, int outputTokens) {}
 }
