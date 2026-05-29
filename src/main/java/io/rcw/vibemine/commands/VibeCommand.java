@@ -5,6 +5,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.ConversationStore;
 import io.rcw.vibemine.ai.plugin.VibedPluginManager;
+import io.rcw.vibemine.handlers.ConversationActionBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -25,10 +26,12 @@ public final class VibeCommand implements BasicCommand {
 
     private final VibedPluginManager pluginManager;
     private final ConversationStore conversationStore;
+    private final ConversationActionBar actionBar;
 
-    public VibeCommand(VibedPluginManager pluginManager, ConversationStore conversationStore) {
+    public VibeCommand(VibedPluginManager pluginManager, ConversationStore conversationStore, ConversationActionBar actionBar) {
         this.pluginManager = pluginManager;
         this.conversationStore = conversationStore;
+        this.actionBar = actionBar;
     }
 
     @Override
@@ -98,6 +101,7 @@ public final class VibeCommand implements BasicCommand {
         saveActiveSession(player);
         Conversation conversation = Conversation.beginConversation(player);
         conversationStore.save(conversation);
+        actionBar.start(player);
         player.sendMessage(Component.text("Started vibe session " + shortId(conversation.getSessionId()) + ". Tell Viber what plugin to build.", NamedTextColor.GREEN));
     }
 
@@ -118,6 +122,7 @@ public final class VibeCommand implements BasicCommand {
         }
 
         Conversation.setConversation(player, conversation.get(), true);
+        actionBar.start(player);
         player.sendMessage(Component.text("Continued vibe session " + shortId(conversation.get().getSessionId()) + ".", NamedTextColor.GREEN));
     }
 
@@ -146,6 +151,7 @@ public final class VibeCommand implements BasicCommand {
         Player player = (Player) sender;
         saveActiveSession(player);
         Conversation.endConversation(player);
+        actionBar.stop(player);
         player.sendMessage(Component.text("Stopped your vibe session.", NamedTextColor.YELLOW));
     }
 

@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
+import io.rcw.vibemine.ai.plugin.integrations.VibeIntegrations;
 import io.rcw.vibemine.ai.plugin.runtime.database.VibeKeyStore;
 import io.rcw.vibemine.ai.plugin.runtime.permissions.VibePermissions;
 import io.rcw.vibemine.ai.plugin.runtime.scheduler.VibeScheduler;
@@ -32,6 +33,7 @@ public final class VibeRuntimeBindings {
         bindings.putMember("permissions", new VibePermissions());
         bindings.putMember("scheduler", scheduler);
         bindings.putMember("database", new VibeKeyStore("global"));
+        VibeIntegrations.install(bindings);
     }
 
     public static void install(Value bindings, VibeScheduler scheduler, String namespace) {

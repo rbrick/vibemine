@@ -19,6 +19,7 @@ import io.rcw.vibemine.ai.tools.syntax.SyntaxHighlightTool;
 import io.rcw.vibemine.commands.VibeCommand;
 import io.rcw.vibemine.handlers.AgentHandler;
 import io.rcw.vibemine.handlers.ChatHandler;
+import io.rcw.vibemine.handlers.ConversationActionBar;
 import io.rcw.vibemine.serialization.*;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -82,6 +83,8 @@ public final class Vibemine extends JavaPlugin {
 
 
 
+        var conversationActionBar = new ConversationActionBar();
+
         // register our chat handler
         Bukkit.getPluginManager().registerEvents(new ChatHandler(conversationStore), this);
 
@@ -90,9 +93,9 @@ public final class Vibemine extends JavaPlugin {
         this.vibedPluginManager.enable();
 
         // register our agent handler
-        Bukkit.getPluginManager().registerEvents(new AgentHandler(agent, vibedPluginManager, conversationStore), this);
+        Bukkit.getPluginManager().registerEvents(new AgentHandler(agent, vibedPluginManager, conversationStore, conversationActionBar), this);
 
-        this.registerCommand("vibe", new VibeCommand(vibedPluginManager, conversationStore));
+        this.registerCommand("vibe", new VibeCommand(vibedPluginManager, conversationStore, conversationActionBar));
     }
 
     @Override

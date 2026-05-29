@@ -2,6 +2,7 @@ package io.rcw.vibemine.ai.tools.api;
 
 import io.rcw.vibemine.ai.plugin.context.CommandExecutionContext;
 import io.rcw.vibemine.ai.plugin.context.EventExecutionContext;
+import io.rcw.vibemine.ai.plugin.integrations.MiniMessageIntegration;
 import io.rcw.vibemine.ai.plugin.runtime.*;
 import io.rcw.vibemine.ai.plugin.runtime.database.VibeKeyStore;
 import io.rcw.vibemine.ai.plugin.runtime.database.VibeTable;
@@ -107,6 +108,7 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
         register(types, VibeRayTraceResult.class, "raytrace", "ray_trace_result");
         register(types, VibeScheduler.class, "scheduler");
         register(types, VibeTask.class, "task");
+        register(types, MiniMessageIntegration.class, "minimessage", "mini_message", "mini");
         return Collections.unmodifiableMap(types);
     }
 
@@ -120,7 +122,7 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
     }
 
     private static String notes() {
-        return "Ask for a specific type, e.g. {\"type\":\"VibePlayer\"}, {\"type\":\"CommandExecutionContext\"}, {\"type\":\"database\"}, or {\"type\":\"table\"}. Global bindings include server, inventories, permissions, scheduler, and database.";
+        return "Ask for a specific type, e.g. {\"type\":\"VibePlayer\"}, {\"type\":\"CommandExecutionContext\"}, {\"type\":\"database\"}, {\"type\":\"table\"}, or {\"type\":\"minimessage\"}. Global bindings include server, inventories, permissions, scheduler, database, and minimessage.";
     }
 
     private static String notesFor(Class<?> type) {
@@ -133,6 +135,7 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
         if (type == VibeKeyStore.class) return "Plugin-scoped persistent storage. Key/value methods remain available; createTable/table returns VibeTable for persistent JSON objects.";
         if (type == VibeTable.class) return "Persistent JSON object table keyed by string id. Good for extensible records like factions, towns, quests, or shops.";
         if (type == VibePermissions.class) return "Global permission helper. Use has/check/require for checks. For permissions-plugin workflows use setMany(player, map), clearAndSet/replace(player, map), applyWildcard(player, wildcard, value), plus grant/deny/unset/clear.";
+        if (type == MiniMessageIntegration.class) return "Global minimessage integration. Vibe message APIs accept legacy ampersand strings, so use minimessage.legacy('<green>Hello</green>') or minimessage.toLegacy(...) before sendMessage/actionBar/title strings.";
         return notes();
     }
 
