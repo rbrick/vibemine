@@ -3,6 +3,10 @@ package io.rcw.vibemine.ai.plugin.context;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.rcw.vibemine.ai.plugin.ExecutionContext;
 import io.rcw.vibemine.ai.plugin.runtime.*;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -15,6 +19,9 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 public final class EventExecutionContext implements ExecutionContext {
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacy('&');
+    private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
+
     private final String name;
     private final Event event;
 
@@ -101,8 +108,31 @@ public final class EventExecutionContext implements ExecutionContext {
     }
 
     public String getMessage() {
-        if (event instanceof AsyncChatEvent chatEvent) return chatEvent.message().toString();
+        if (event instanceof AsyncChatEvent chatEvent) return PLAIN.serialize(chatEvent.message());
         return null;
+    }
+
+    public void setMessage(String message) {
+        if (event instanceof AsyncChatEvent chatEvent) chatEvent.message(component(message));
+    }
+
+    public void setFormat(String format) {
+        if (!(event instanceof AsyncChatEvent chatEvent)) return;
+        chatEvent.renderer((source, sourceDisplayName, message, viewer) -> component(format)
+                .replaceText(builder -> builder.matchLiteral("{player}").replacement(sourceDisplayName))
+                .replaceText(builder -> builder.matchLiteral("{name}").replacement(sourceDisplayName))
+                .replaceText(builder -> builder.matchLiteral("{message}").replacement(message))
+                .hoverEvent(HoverEvent.showText(Component.text("Sent by " + source.getName()))));
+    }
+
+    public void broadcast(String message) {
+        if (event instanceof AsyncChatEvent chatEvent) {
+            chatEvent.viewers().forEach(viewer -> viewer.sendMessage(component(message)));
+        }
+    }
+
+    private Component component(String message) {
+        return message == null ? Component.empty() : LEGACY.deserialize(message);
     }
 
 }

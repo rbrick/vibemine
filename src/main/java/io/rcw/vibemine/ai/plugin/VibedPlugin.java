@@ -5,6 +5,7 @@ import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeBindings;
 import io.rcw.vibemine.ai.plugin.runtime.scheduler.VibeScheduler;
 import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 import org.bukkit.Bukkit;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.event.Event;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
@@ -13,6 +14,7 @@ import org.graalvm.polyglot.Value;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -76,11 +78,17 @@ public final class VibedPlugin {
             return;
         }
         plugin.getLogger().info("Vibed plugin '" + name() + "' scheduling event '" + normalizedEventName + "' from " + event.getClass().getSimpleName());
-        runOnMainThread(() -> {
+        Runnable runnable = () -> {
             plugin.getLogger().info("Vibed plugin '" + name() + "' running event '" + normalizedEventName + "'");
             vibedEvent.executeSource(event, state);
             plugin.getLogger().info("Vibed plugin '" + name() + "' finished event '" + normalizedEventName + "'");
-        }, event);
+        };
+
+        // AsyncChatEvent decisions (cancel/message/renderer) must be made before Paper
+        // continues rendering the chat message. Run the JS on the main thread but block
+        // this async event thread until it finishes so cancellation/formatting applies.
+        if (event instanceof AsyncChatEvent) runOnMainThreadAndWait(runnable, event);
+        else runOnMainThread(runnable, event);
     }
 
     Value evalFunction(String sourceCode) {
@@ -108,7 +116,32 @@ public final class VibedPlugin {
     }
 
     private void runOnMainThread(Runnable runnable, Event event) {
-        Runnable guarded = () -> {
+        Runnable guarded = guarded(runnable, event);
+        if (Bukkit.isPrimaryThread()) guarded.run();
+        else Bukkit.getScheduler().runTask(plugin, guarded);
+    }
+
+    private void runOnMainThreadAndWait(Runnable runnable, Event event) {
+        Runnable guarded = guarded(runnable, event);
+        if (Bukkit.isPrimaryThread()) {
+            guarded.run();
+            return;
+        }
+
+        CompletableFuture<Void> complete = new CompletableFuture<>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                guarded.run();
+                complete.complete(null);
+            } catch (Throwable throwable) {
+                complete.completeExceptionally(throwable);
+            }
+        });
+        complete.join();
+    }
+
+    private Runnable guarded(Runnable runnable, Event event) {
+        return () -> {
             try {
                 runnable.run();
             } catch (Exception exception) {
@@ -116,8 +149,6 @@ public final class VibedPlugin {
                 notifyEventPlayer(event, exception);
             }
         };
-        if (Bukkit.isPrimaryThread()) guarded.run();
-        else Bukkit.getScheduler().runTask(plugin, guarded);
     }
 
     private void notifyEventPlayer(Event event, Exception exception) {
