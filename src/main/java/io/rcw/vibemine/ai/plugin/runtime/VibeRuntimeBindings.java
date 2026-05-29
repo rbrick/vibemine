@@ -34,12 +34,16 @@ public final class VibeRuntimeBindings {
         bindings.putMember("database", new VibeKeyStore("global"));
     }
 
+    public static void install(Value bindings, VibeScheduler scheduler, String namespace) {
+        install(bindings, scheduler);
+        bindings.putMember("database", new VibeKeyStore(namespace));
+    }
+
     /**
      * JavaScript binding for {@code install}.
      */
     public static void install(Value bindings, String namespace) {
-        install(bindings);
-        bindings.putMember("database", new VibeKeyStore(namespace));
+        install(bindings, new VibeScheduler(), namespace);
     }
 
     public static void install(Value bindings, CommandSender sender) {

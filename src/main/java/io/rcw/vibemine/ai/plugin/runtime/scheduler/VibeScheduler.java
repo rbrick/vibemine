@@ -5,6 +5,8 @@ import org.bukkit.Bukkit;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -16,6 +18,7 @@ public final class VibeScheduler {
     private final AtomicInteger pendingTasks;
     private final AtomicBoolean rootFinished;
     private final AtomicBoolean closed;
+    private final Set<VibeTask> tasks = ConcurrentHashMap.newKeySet();
 
     public VibeScheduler() {
         this(null, null, null, null);
@@ -33,7 +36,7 @@ public final class VibeScheduler {
      */
     public VibeTask run(Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTask(Vibemine.getInstance(), once(callback)), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTask(Vibemine.getInstance(), once(callback)), this::release));
     }
 
     /**
@@ -41,7 +44,7 @@ public final class VibeScheduler {
      */
     public VibeTask async(Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTaskAsynchronously(Vibemine.getInstance(), once(callback)), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTaskAsynchronously(Vibemine.getInstance(), once(callback)), this::release));
     }
 
     /**
@@ -49,7 +52,21 @@ public final class VibeScheduler {
      */
     public VibeTask later(long delayTicks, Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTaskLater(Vibemine.getInstance(), once(callback), delayTicks), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTaskLater(Vibemine.getInstance(), once(callback), delayTicks), this::release));
+    }
+
+    /**
+     * JavaScript-friendly overload: scheduler.later(callback, delayTicks).
+     */
+    public VibeTask later(Value callback, long delayTicks) {
+        return later(delayTicks, callback);
+    }
+
+    /**
+     * Alias for generated JavaScript that uses Bukkit-style naming.
+     */
+    public VibeTask runLater(Value callback, long delayTicks) {
+        return later(delayTicks, callback);
     }
 
     /**
@@ -57,7 +74,14 @@ public final class VibeScheduler {
      */
     public VibeTask asyncLater(long delayTicks, Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTaskLaterAsynchronously(Vibemine.getInstance(), once(callback), delayTicks), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTaskLaterAsynchronously(Vibemine.getInstance(), once(callback), delayTicks), this::release));
+    }
+
+    /**
+     * JavaScript-friendly overload: scheduler.asyncLater(callback, delayTicks).
+     */
+    public VibeTask asyncLater(Value callback, long delayTicks) {
+        return asyncLater(delayTicks, callback);
     }
 
     /**
@@ -65,7 +89,21 @@ public final class VibeScheduler {
      */
     public VibeTask repeat(long delayTicks, long periodTicks, Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release));
+    }
+
+    /**
+     * JavaScript-friendly overload: scheduler.repeat(callback, delayTicks, periodTicks).
+     */
+    public VibeTask repeat(Value callback, long delayTicks, long periodTicks) {
+        return repeat(delayTicks, periodTicks, callback);
+    }
+
+    /**
+     * Alias for generated JavaScript that uses Bukkit-style naming.
+     */
+    public VibeTask runRepeating(Value callback, long delayTicks, long periodTicks) {
+        return repeat(delayTicks, periodTicks, callback);
     }
 
     /**
@@ -73,7 +111,21 @@ public final class VibeScheduler {
      */
     public VibeTask asyncRepeat(long delayTicks, long periodTicks, Value callback) {
         retain();
-        return new VibeTask(Bukkit.getScheduler().runTaskTimerAsynchronously(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release);
+        return track(new VibeTask(Bukkit.getScheduler().runTaskTimerAsynchronously(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release));
+    }
+
+    /**
+     * JavaScript-friendly overload: scheduler.asyncRepeat(callback, delayTicks, periodTicks).
+     */
+    public VibeTask asyncRepeat(Value callback, long delayTicks, long periodTicks) {
+        return asyncRepeat(delayTicks, periodTicks, callback);
+    }
+
+    /**
+     * Cancels a task returned by this scheduler. Accepts null for easier generated JS cleanup code.
+     */
+    public void cancelTask(VibeTask task) {
+        if (task != null) task.cancel();
     }
 
     private Runnable once(Value callback) {
@@ -84,6 +136,19 @@ public final class VibeScheduler {
                 release();
             }
         };
+    }
+
+    private VibeTask track(VibeTask task) {
+        tasks.add(task);
+        return task;
+    }
+
+    /**
+     * Cancels every task scheduled through this facade. Used when a vibed plugin is unloaded/reloaded.
+     */
+    public void cancelAll() {
+        for (VibeTask task : Set.copyOf(tasks)) task.cancel();
+        tasks.clear();
     }
 
     private Runnable repeating(Value callback) {

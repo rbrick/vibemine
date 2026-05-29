@@ -6,8 +6,10 @@ import net.kyori.adventure.text.format.TextColor;
 import org.jspecify.annotations.NonNull;
 import org.treesitter.*;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 public final class Highlighting {
@@ -39,6 +41,73 @@ public final class Highlighting {
 
     public static Component javascript(final String code) {
         return highlight(Language.JAVASCRIPT, code);
+    }
+
+    public static Component diff(final String before, final String after) {
+        String[] oldLines = before == null || before.isEmpty() ? new String[0] : before.split("\\R", -1);
+        String[] newLines = after == null || after.isEmpty() ? new String[0] : after.split("\\R", -1);
+        int[][] lcs = new int[oldLines.length + 1][newLines.length + 1];
+        for (int i = oldLines.length - 1; i >= 0; i--) {
+            for (int j = newLines.length - 1; j >= 0; j--) {
+                lcs[i][j] = oldLines[i].equals(newLines[j]) ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+            }
+        }
+
+        List<Component> lines = new ArrayList<>();
+        int i = 0, j = 0;
+        while (i < oldLines.length || j < newLines.length) {
+            if (i < oldLines.length && j < newLines.length && oldLines[i].equals(newLines[j])) {
+                lines.add(diffLine("  ", NamedTextColor.DARK_GRAY, oldLines[i], NamedTextColor.DARK_GRAY));
+                i++; j++;
+            } else if (j < newLines.length && (i == oldLines.length || lcs[i][j + 1] >= lcs[i + 1][j])) {
+                lines.add(diffLine("+ ", NamedTextColor.GREEN, newLines[j], null));
+                j++;
+            } else if (i < oldLines.length) {
+                lines.add(diffLine("- ", NamedTextColor.RED, oldLines[i], null));
+                i++;
+            }
+        }
+        return joinLimited(lines, 80);
+    }
+
+    private static Component diffLine(String prefix, NamedTextColor prefixColor, String code, NamedTextColor fallbackColor) {
+        Component highlighted = highlightGuess(code);
+        if (fallbackColor != null) highlighted = highlighted.colorIfAbsent(fallbackColor);
+        return Component.text(prefix, prefixColor).append(highlighted);
+    }
+
+    private static Component highlightGuess(String code) {
+        String trimmed = code == null ? "" : code.trim();
+        if (trimmed.startsWith("\"") || trimmed.startsWith("{") || trimmed.startsWith("}") || trimmed.startsWith("[") || trimmed.startsWith("]")) {
+            try {
+                return json(code);
+            } catch (Exception ignored) {
+                return Component.text(code);
+            }
+        }
+        try {
+            return javascript(code);
+        } catch (Exception ignored) {
+            return Component.text(code);
+        }
+    }
+
+    private static Component joinLimited(List<Component> lines, int maxLines) {
+        if (lines.size() > maxLines) {
+            int keepHead = maxLines / 2;
+            int keepTail = maxLines - keepHead - 1;
+            List<Component> limited = new ArrayList<>();
+            limited.addAll(lines.subList(0, keepHead));
+            limited.add(Component.text("... " + (lines.size() - keepHead - keepTail) + " diff lines hidden ...", NamedTextColor.GRAY));
+            limited.addAll(lines.subList(lines.size() - keepTail, lines.size()));
+            lines = limited;
+        }
+        Component component = Component.empty();
+        for (int i = 0; i < lines.size(); i++) {
+            if (i > 0) component = component.append(Component.newline());
+            component = component.append(lines.get(i));
+        }
+        return component;
     }
 
     public static Component highlight(final Language language, final String code) {

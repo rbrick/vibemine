@@ -3,6 +3,7 @@ package io.rcw.vibemine.ai.plugin.runtime;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.graalvm.polyglot.Value;
 
 import java.util.List;
 
@@ -17,6 +18,38 @@ public final class VibeServer {
      */
     public void broadcast(String message) {
         Bukkit.broadcast(VibeText.component(message));
+    }
+
+    /**
+     * Sends a message only to players listed in a JavaScript object/array.
+     * For objects like state.players, member names are treated as player names.
+     * For arrays, each element is treated as a player name.
+     */
+    public void broadcastPlayers(Value players, String message) {
+        if (players == null || players.isNull()) return;
+        if (players.hasArrayElements()) {
+            for (long i = 0; i < players.getArraySize(); i++) sendToPlayerName(players.getArrayElement(i), message);
+            return;
+        }
+        if (players.hasMembers()) {
+            for (String name : players.getMemberKeys()) sendToPlayerName(name, message);
+        }
+    }
+
+    /**
+     * Alias for {@link #broadcastPlayers(Value, String)}.
+     */
+    public void broadcastToPlayers(Value players, String message) {
+        broadcastPlayers(players, message);
+    }
+
+    private void sendToPlayerName(Value name, String message) {
+        if (name != null && !name.isNull()) sendToPlayerName(name.asString(), message);
+    }
+
+    private void sendToPlayerName(String name, String message) {
+        Player player = Bukkit.getPlayerExact(name);
+        if (player != null) player.sendMessage(VibeText.component(message));
     }
 
     /**

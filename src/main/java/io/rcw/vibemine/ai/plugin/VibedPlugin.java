@@ -2,6 +2,7 @@ package io.rcw.vibemine.ai.plugin;
 
 import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeBindings;
+import io.rcw.vibemine.ai.plugin.runtime.scheduler.VibeScheduler;
 import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
@@ -22,6 +23,7 @@ public final class VibedPlugin {
     private final List<VibedCommand> commands;
     private Context context;
     private Value state;
+    private VibeScheduler scheduler;
 
     public VibedPlugin(Vibemine plugin, VibedPluginSchema schema) {
         this.plugin = plugin;
@@ -37,13 +39,18 @@ public final class VibedPlugin {
                 .allowHostAccess(safeHostAccess())
                 .allowHostClassLookup(name -> false)
                 .build();
-        VibeRuntimeBindings.install(context.getBindings("js"), name());
+        scheduler = new VibeScheduler();
+        VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name());
         String globals = schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals();
         validateJavaScript(globals);
         state = context.eval("js", globals).execute();
     }
 
     public void disable() {
+        if (scheduler != null) {
+            scheduler.cancelAll();
+            scheduler = null;
+        }
         if (context != null) {
             context.close(true);
             context = null;

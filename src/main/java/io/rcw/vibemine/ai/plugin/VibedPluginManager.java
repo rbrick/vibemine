@@ -1,5 +1,7 @@
 package io.rcw.vibemine.ai.plugin;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
@@ -116,15 +118,43 @@ public final class VibedPluginManager {
 
     public synchronized VibedPlugin saveAndLoad(String json) throws IOException {
         VibedPluginSchema schema = parseSchema(json);
+        return saveAndLoad(schema);
+    }
+
+    public synchronized VibedPlugin patchAndLoad(JsonObject patch) throws IOException {
+        return saveAndLoad(patchedJson(patch));
+    }
+
+    public synchronized String existingPluginJson(String name) throws IOException {
+        String normalized = normalizeName(name);
+        Path path = pluginsDirectory.resolve(normalized + ".json");
+        if (!Files.exists(path)) throw new NoSuchFileException(normalized + ".json");
+        return Files.readString(path, StandardCharsets.UTF_8);
+    }
+
+    public synchronized String patchedJson(JsonObject patch) throws IOException {
+        if (patch == null || !patch.has("name")) throw new IllegalArgumentException("Patch is missing plugin name");
+        String name = normalizeName(patch.get("name").getAsString());
+        JsonObject existing = Vibemine.GSON.fromJson(existingPluginJson(name), JsonObject.class);
+        if (existing == null) throw new IllegalArgumentException("Existing plugin JSON is empty");
+
+        copyIfPresent(patch, existing, "description");
+        copyIfPresent(patch, existing, "globals");
+        copyIfPresent(patch, existing, "version");
+        patchArrayByKey(existing, patch, "commands", "label");
+        patchArrayByKey(existing, patch, "events", "event");
+
+        return Vibemine.GSON.toJson(existing);
+    }
+
+    private synchronized VibedPlugin saveAndLoad(VibedPluginSchema schema) throws IOException {
         String name = normalizeName(schema.name());
         Path path = pluginsDirectory.resolve(name + ".json");
         Path tempPath = pluginsDirectory.resolve(name + ".json.tmp");
 
         Files.createDirectories(pluginsDirectory);
 
-        // Updating a generated plugin is intentionally a full replacement:
-        // disable the live instance, unregister commands/listeners, delete the old
-        // persisted file, write the new JSON, then load from the fresh file.
+        // Updating a generated plugin is intentionally a full replacement on disk.
         unload(name);
         Files.deleteIfExists(path);
 
@@ -139,6 +169,47 @@ public final class VibedPluginManager {
         } finally {
             Files.deleteIfExists(tempPath);
         }
+    }
+
+    private void copyIfPresent(JsonObject source, JsonObject target, String key) {
+        if (source.has(key)) target.add(key, source.get(key));
+    }
+
+    private void patchArrayByKey(JsonObject existing, JsonObject patch, String arrayName, String keyName) {
+        if (!patch.has(arrayName) || !patch.get(arrayName).isJsonArray()) return;
+        var current = existing.has(arrayName) && existing.get(arrayName).isJsonArray()
+                ? existing.getAsJsonArray(arrayName)
+                : new com.google.gson.JsonArray();
+
+        for (JsonElement patchElement : patch.getAsJsonArray(arrayName)) {
+            if (!patchElement.isJsonObject()) continue;
+            JsonObject patchObject = patchElement.getAsJsonObject();
+            if (!patchObject.has(keyName)) continue;
+            String key = normalizeName(patchObject.get(keyName).getAsString());
+            int index = findObjectIndex(current, keyName, key);
+            boolean delete = patchObject.has("delete") && patchObject.get("delete").getAsBoolean();
+            if (delete) {
+                if (index >= 0) current.remove(index);
+            } else if (index >= 0) {
+                JsonObject merged = current.get(index).getAsJsonObject();
+                patchObject.entrySet().forEach(entry -> {
+                    if (!entry.getKey().equals("delete")) merged.add(entry.getKey(), entry.getValue());
+                });
+            } else {
+                current.add(patchObject);
+            }
+        }
+        existing.add(arrayName, current);
+    }
+
+    private int findObjectIndex(com.google.gson.JsonArray array, String keyName, String key) {
+        for (int i = 0; i < array.size(); i++) {
+            JsonElement element = array.get(i);
+            if (!element.isJsonObject()) continue;
+            JsonObject object = element.getAsJsonObject();
+            if (object.has(keyName) && normalizeName(object.get(keyName).getAsString()).equals(key)) return i;
+        }
+        return -1;
     }
 
     private void moveIntoPlace(Path tempPath, Path path) throws IOException {

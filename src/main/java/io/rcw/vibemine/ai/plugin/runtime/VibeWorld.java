@@ -2,6 +2,7 @@ package io.rcw.vibemine.ai.plugin.runtime;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EntityType;
@@ -107,7 +108,14 @@ public final class VibeWorld {
      */
     public void playSound(VibeLocation location, String sound, float volume, float pitch) {
         if (location == null) throw new IllegalArgumentException("Location cannot be null");
-        this.world.playSound(location.unwrap(), sound, volume, pitch);
+        this.world.playSound(location.unwrap(), normalizeSound(sound), volume, pitch);
+    }
+
+    /**
+     * JavaScript-friendly overload for numeric volume/pitch values.
+     */
+    public void playSound(VibeLocation location, String sound, double volume, double pitch) {
+        playSound(location, sound, (float) volume, (float) pitch);
     }
 
     /**
@@ -121,7 +129,14 @@ public final class VibeWorld {
      * JavaScript binding for {@code playSoundAt}.
      */
     public void playSoundAt(double x, double y, double z, String sound, float volume, float pitch) {
-        this.world.playSound(new Location(this.world, x, y, z), sound, volume, pitch);
+        this.world.playSound(new Location(this.world, x, y, z), normalizeSound(sound), volume, pitch);
+    }
+
+    /**
+     * JavaScript-friendly overload for numeric volume/pitch values.
+     */
+    public void playSoundAt(double x, double y, double z, String sound, double volume, double pitch) {
+        playSoundAt(x, y, z, sound, (float) volume, (float) pitch);
     }
 
     /**
@@ -135,6 +150,16 @@ public final class VibeWorld {
      * JavaScript binding for {@code unwrap}.
      */
     World unwrap() { return this.world; }
+
+    private String normalizeSound(String sound) {
+        if (sound == null || sound.isBlank()) throw new IllegalArgumentException("Sound cannot be blank");
+        try {
+            return Sound.valueOf(sound.toUpperCase()).getKey().asString();
+        } catch (IllegalArgumentException ignored) {
+            String normalized = sound.toLowerCase();
+            return normalized.contains(":") ? normalized : "minecraft:" + normalized;
+        }
+    }
 
     private BlockData parseBlockData(String blockData) {
         if (blockData == null || blockData.isBlank()) throw new IllegalArgumentException("Block data cannot be blank");

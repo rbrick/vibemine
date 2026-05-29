@@ -2,12 +2,15 @@ package io.rcw.vibemine.ai.plugin.runtime.scheduler;
 
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * JavaScript-safe wrapper for a scheduled Bukkit task.
  */
 public final class VibeTask {
     private final BukkitTask task;
     private final Runnable onCancel;
+    private final AtomicBoolean cancelNotified = new AtomicBoolean(false);
 
     /**
      * Creates a wrapper around a Bukkit task.
@@ -29,7 +32,7 @@ public final class VibeTask {
      */
     public void cancel() {
         this.task.cancel();
-        if (this.onCancel != null) this.onCancel.run();
+        if (this.onCancel != null && this.cancelNotified.compareAndSet(false, true)) this.onCancel.run();
     }
 
     /**

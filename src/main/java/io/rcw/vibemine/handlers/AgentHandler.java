@@ -81,7 +81,15 @@ public final class AgentHandler implements Listener {
         if (agentResponse.kind() == ResponseType.CODE) {
             Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
                 try {
-                    String pluginJson = Vibemine.GSON.toJson(agentResponse.responseJson());
+                    var responseJson = agentResponse.responseJson();
+                    if (responseJson == null || responseJson.isJsonNull()) {
+                        event.getPlayer().sendMessage(Component.text("The model returned malformed plugin JSON. Nothing was loaded; please ask it to regenerate or simplify the plugin.", NamedTextColor.RED));
+                        event.getConversation().addMessage(new Conversation.Message(Sender.AGENT,
+                                "I returned malformed plugin JSON, so Vibemine did not load it. Please regenerate a smaller, valid plugin JSON response.", System.currentTimeMillis()));
+                        conversationStore.save(event.getConversation());
+                        return;
+                    }
+                    String pluginJson = Vibemine.GSON.toJson(responseJson);
                     sendGeneratedCodePreview(event, pluginJson);
                     var loaded = vibedPluginManager.saveAndLoad(pluginJson);
                     event.getPlayer().sendMessage(Component.text("Loaded vibed plugin: " + loaded.name(), NamedTextColor.GREEN));
@@ -90,6 +98,32 @@ public final class AgentHandler implements Listener {
                     conversationStore.save(event.getConversation());
                 } catch (Exception exception) {
                     event.getPlayer().sendMessage(Component.text("Could not load the generated plugin: " + exception.getMessage(), NamedTextColor.RED));
+                }
+            });
+            return;
+        }
+
+        if (agentResponse.kind() == ResponseType.CODE_PATCH) {
+            Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
+                try {
+                    var responseJson = agentResponse.responseJson();
+                    if (responseJson == null || !responseJson.isJsonObject()) {
+                        event.getPlayer().sendMessage(Component.text("The model returned a malformed plugin patch. Nothing was loaded.", NamedTextColor.RED));
+                        return;
+                    }
+                    var patch = responseJson.getAsJsonObject();
+                    String pluginName = patch.has("name") ? patch.get("name").getAsString() : "";
+                    String before = vibedPluginManager.existingPluginJson(pluginName);
+                    String after = vibedPluginManager.patchedJson(patch);
+                    event.getPlayer().sendMessage(Component.text("VibePlugin patch diff:", NamedTextColor.GOLD));
+                    event.getPlayer().sendMessage(Highlighting.diff(before, after));
+                    var loaded = vibedPluginManager.saveAndLoad(after);
+                    event.getPlayer().sendMessage(Component.text("Patched vibed plugin: " + loaded.name(), NamedTextColor.GREEN));
+                    event.getConversation().addMessage(new Conversation.Message(Sender.AGENT,
+                            "Patched vibed plugin: " + loaded.name(), System.currentTimeMillis()));
+                    conversationStore.save(event.getConversation());
+                } catch (Exception exception) {
+                    event.getPlayer().sendMessage(Component.text("Could not patch the generated plugin: " + exception.getMessage(), NamedTextColor.RED));
                 }
             });
             return;

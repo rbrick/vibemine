@@ -353,6 +353,13 @@ public final class VibePlayer extends VibeSender {
     }
 
     /**
+     * JavaScript-friendly overload for numeric volume/pitch values.
+     */
+    public void playSound(String sound, double volume, double pitch) {
+        playSound(sound, (float) volume, (float) pitch);
+    }
+
+    /**
      * JavaScript binding for {@code playSound} at the player's current location with default volume/pitch.
      */
     public void playSound(String sound) {
@@ -365,6 +372,13 @@ public final class VibePlayer extends VibeSender {
     public void playSoundAt(VibeLocation location, String sound, float volume, float pitch) {
         if (location == null) throw new IllegalArgumentException("Location cannot be null");
         this.player.playSound(location.unwrap(), sound, volume, pitch);
+    }
+
+    /**
+     * JavaScript-friendly overload for numeric volume/pitch values.
+     */
+    public void playSoundAt(VibeLocation location, String sound, double volume, double pitch) {
+        playSoundAt(location, sound, (float) volume, (float) pitch);
     }
 
     /**

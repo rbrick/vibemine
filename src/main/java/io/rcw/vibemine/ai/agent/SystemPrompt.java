@@ -65,6 +65,20 @@ public interface SystemPrompt {
                 "response": "generic message"
             }
             
+            CODE_PATCH schema for small changes to an existing plugin:
+            {
+              "type":"CODE_PATCH",
+              "response":{
+                "name":"existing_plugin_name",
+                "description":"optional replacement description",
+                "version":2,
+                "globals":"optional replacement globals function string",
+                "commands":[{"label":"existing_or_new_command","permission":"optional permission","code":"optional full replacement command function string","delete":false}],
+                "events":[{"event":"existing_or_new_event","code":"optional full replacement event function string","delete":false}]
+              }
+            }
+            Omit unchanged fields. A command patch is matched by label. An event patch is matched by event. Use delete:true to remove one.
+
             ERROR schema:
             {
               "type": "ERROR",
@@ -74,13 +88,13 @@ public interface SystemPrompt {
             
            
             Rules:
-            - Type is either "CODE", "CHAT", or "ERROR"
+            - Type is either "CODE", "CODE_PATCH", "CHAT", or "ERROR"
             - Output valid JSON only.
             - All JavaScript must be serialized as JSON strings.
             - Plugin names and command labels must be lowercase snake_case.
-            - When the user asks to change, fix, remove from, or add to an existing plugin, call the `plugin_context` tool first to inspect the existing generated plugin JSON. Then return the complete updated plugin using the same plugin name. The server will hot-swap it by unloading the old instance and loading this replacement.
+            - When the user asks to change, fix, remove from, or add to an existing plugin, call the `plugin_context` tool first to inspect the existing generated plugin JSON. For small changes, prefer CODE_PATCH and include only changed commands/events/globals fields. For large rewrites, return CODE with the complete updated plugin using the same plugin name. The server will hot-swap it by unloading the old instance and loading the replacement.
             - If the user says "it", "the plugin", "that command", "add to it", "fix it", or otherwise refers to prior work, use `plugin_context` with `latest` unless a specific plugin name is given.
-            - Do not generate a partial patch; include all commands/events/globals that should remain after the update.
+            - For CODE responses, do not generate a partial patch; include all commands/events/globals that should remain after the update. For CODE_PATCH responses, include only changed commands/events/globals.
             - The `globals` field must contain a function string:
               "(function() { return {}; })"
             - The object returned from `globals` becomes `state`.

@@ -20,16 +20,24 @@ public record AgentResponse(ResponseType kind, String rawMessage) {
     }
 
     public JsonElement responseJson() {
-        JsonObject object = Vibemine.GSON.fromJson(rawMessage, JsonObject.class);
-        if (object == null || !object.has("response")) {
+        try {
+            JsonObject object = Vibemine.GSON.fromJson(rawMessage, JsonObject.class);
+            if (object == null || !object.has("response")) {
+                return null;
+            }
+            return object.get("response");
+        } catch (Exception ignored) {
             return null;
         }
-        return object.get("response");
     }
 
     public String responseText() {
         JsonElement response = responseJson();
         if (response == null) return rawMessage;
         return response.isJsonPrimitive() ? response.getAsString() : Vibemine.GSON.toJson(response);
+    }
+
+    public boolean hasValidResponseJson() {
+        return responseJson() != null;
     }
 }
