@@ -16,14 +16,35 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public final class AgentHandler implements Listener {
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+    private static final List<String> THINKING_MESSAGES = List.of(
+            "vibing...",
+            "crafting...",
+            "exploding...",
+            "brewing ideas...",
+            "summoning code...",
+            "polishing pixels...",
+            "wrangling creepers...",
+            "dreaming in blocks..."
+    );
+
     private final Agent agent;
     private final VibedPluginManager vibedPluginManager;
     private final ConversationStore conversationStore;
+    private final ConcurrentMap<UUID, BukkitTask> thinkingActionBars = new ConcurrentHashMap<>();
 
     public AgentHandler(final Agent agent, VibedPluginManager vibedPluginManager, ConversationStore conversationStore) {
         this.agent = agent;
@@ -33,7 +54,13 @@ public final class AgentHandler implements Listener {
 
     @EventHandler
     public void onConverse(final PlayerConverseEvent event) {
-        agent.generateFromConversation(event.getConversation()).thenAccept(agentResponse -> {
+        startThinkingActionBar(event.getPlayer());
+        agent.generateFromConversation(event.getConversation()).whenComplete((agentResponse, throwable) -> {
+            stopThinkingActionBar(event.getPlayer());
+            if (throwable != null) {
+                event.getPlayer().sendMessage(Component.text("Viber tripped while thinking: " + throwable.getMessage(), NamedTextColor.RED));
+                return;
+            }
             if (agentResponse != null) {
                 Bukkit.getPluginManager().callEvent(new AsyncAgentResponseEvent(
                         event.getPlayer(),
@@ -71,6 +98,29 @@ public final class AgentHandler implements Listener {
         }
 
         sendAgentMessage(event, Component.text(agentResponse.responseText()));
+    }
+
+    private void startThinkingActionBar(Player player) {
+        stopThinkingActionBar(player);
+        int[] tick = {0};
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), () -> {
+            if (!player.isOnline()) {
+                stopThinkingActionBar(player);
+                return;
+            }
+
+            String message = THINKING_MESSAGES.get((tick[0]++ / 4) % THINKING_MESSAGES.size());
+            player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:red:gold:yellow:green:aqua:blue:light_purple>" + message + "</gradient></bold>"));
+        }, 0L, 5L);
+        thinkingActionBars.put(player.getUniqueId(), task);
+    }
+
+    private void stopThinkingActionBar(Player player) {
+        BukkitTask task = thinkingActionBars.remove(player.getUniqueId());
+        if (task != null) {
+            task.cancel();
+        }
+        Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> player.sendActionBar(Component.empty()));
     }
 
     private void sendGeneratedCodePreview(AsyncAgentResponseEvent event, String pluginJson) {

@@ -5,7 +5,9 @@ import io.rcw.vibemine.ai.plugin.ExecutionContext;
 import io.rcw.vibemine.ai.plugin.runtime.*;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerEvent;
@@ -41,6 +43,8 @@ public final class EventExecutionContext implements ExecutionContext {
 
     public VibePlayer getPlayer() {
         if (event instanceof PlayerEvent playerEvent) return VibeRuntimeCache.player(playerEvent.getPlayer());
+        if (event instanceof BlockBreakEvent blockBreakEvent) return VibeRuntimeCache.player(blockBreakEvent.getPlayer());
+        if (event instanceof BlockPlaceEvent blockPlaceEvent) return VibeRuntimeCache.player(blockPlaceEvent.getPlayer());
         return null;
     }
 
