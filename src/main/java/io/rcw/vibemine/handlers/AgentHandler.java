@@ -30,6 +30,9 @@ import java.util.concurrent.ConcurrentMap;
 
 public final class AgentHandler implements Listener {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
+    private static final String FUN_MESSAGE_GRADIENT = "red:gold:yellow:green:aqua:blue:light_purple:red";
+    private static final int FUN_MESSAGE_DURATION_TICKS = 240; // 12 seconds at 20 TPS
+    private static final double FUN_GRADIENT_CYCLE_TICKS = 240.0D;
     private static final List<String> THINKING_MESSAGES = List.of(
             "vibing...",
             "crafting...",
@@ -109,9 +112,11 @@ public final class AgentHandler implements Listener {
                 return;
             }
 
-            String message = THINKING_MESSAGES.get((tick[0]++ / 4) % THINKING_MESSAGES.size());
-            player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:red:gold:yellow:green:aqua:blue:light_purple>" + message + "</gradient></bold>"));
-        }, 0L, 5L);
+            int currentTick = tick[0]++;
+            String message = THINKING_MESSAGES.get((currentTick / FUN_MESSAGE_DURATION_TICKS) % THINKING_MESSAGES.size());
+            double gradientPhase = Math.sin((currentTick / FUN_GRADIENT_CYCLE_TICKS) * Math.PI * 2.0D);
+            player.sendActionBar(MINI_MESSAGE.deserialize("<bold><gradient:" + FUN_MESSAGE_GRADIENT + ":" + gradientPhase + ">" + message + "</gradient></bold>"));
+        }, 0L, 1L);
         thinkingActionBars.put(player.getUniqueId(), task);
     }
 
