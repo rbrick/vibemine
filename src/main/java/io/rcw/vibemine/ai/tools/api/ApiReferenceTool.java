@@ -126,12 +126,13 @@ public final class ApiReferenceTool implements Tool<ApiReferenceTool.ApiReferenc
     private static String notesFor(Class<?> type) {
         if (type == CommandExecutionContext.class) return "Command handlers receive this as ctx. Use ctx.getSender().isPlayer() before ctx.getSender().asPlayer().";
         if (type == EventExecutionContext.class) return "Event handlers receive this as ctx. Some getters return null depending on event type.";
-        if (type == VibePlayer.class) return "VibePlayer extends VibeSender, so sender methods like sendMessage and hasPermission are also available. Use playSound(sound, volume, pitch) for player-local sounds.";
+        if (type == VibePlayer.class) return "VibePlayer extends VibeSender, so sender methods like sendMessage and hasPermission are also available. Permission helpers: setPermission, grantPermission, denyPermission, unsetPermission, clearPermissions, setPermissions(map), replacePermissions(map), applyWildcardPermission(wildcard, value).";
         if (type == VibeWorld.class) return "World utilities include get/set block helpers, spawnEntity, lightning, and playSound(location, sound, volume, pitch) / playSoundAt(x, y, z, sound, volume, pitch).";
         if (type == VibeBlock.class) return "Use getBlockData/setBlockData and captureState/restoreState when preserving rotations, door halves, waterlogging, chest contents, signs, etc.";
         if (type == VibeBlockSnapshot.class) return "Captured block state for safe undo/restore. It preserves full block data and tile-entity state where Bukkit supports it.";
         if (type == VibeKeyStore.class) return "Plugin-scoped persistent storage. Key/value methods remain available; createTable/table returns VibeTable for persistent JSON objects.";
         if (type == VibeTable.class) return "Persistent JSON object table keyed by string id. Good for extensible records like factions, towns, quests, or shops.";
+        if (type == VibePermissions.class) return "Global permission helper. Use has/check/require for checks. For permissions-plugin workflows use setMany(player, map), clearAndSet/replace(player, map), applyWildcard(player, wildcard, value), plus grant/deny/unset/clear.";
         return notes();
     }
 

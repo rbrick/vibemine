@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
+import io.rcw.vibemine.ai.plugin.runtime.permissions.VibePermissions;
 import io.rcw.vibemine.ai.plugin.runtime.raytrace.VibeRayTraceResult;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
@@ -7,6 +8,9 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.graalvm.polyglot.Value;
+
+import java.util.Map;
 
 /**
  * JavaScript-safe wrapper/binding for Vibe Player functionality.
@@ -98,6 +102,76 @@ public final class VibePlayer extends VibeSender {
      */
     public boolean allowedFlight() {
         return getAllowFlight();
+    }
+
+    /**
+     * JavaScript binding for {@code setPermission}.
+     */
+    public void setPermission(String permission, boolean value) {
+        new VibePermissions().set(this, permission, value);
+    }
+
+    /**
+     * JavaScript binding for {@code grantPermission}.
+     */
+    public void grantPermission(String permission) {
+        setPermission(permission, true);
+    }
+
+    /**
+     * JavaScript binding for {@code denyPermission}.
+     */
+    public void denyPermission(String permission) {
+        setPermission(permission, false);
+    }
+
+    /**
+     * JavaScript binding for {@code unsetPermission}.
+     */
+    public void unsetPermission(String permission) {
+        new VibePermissions().unset(this, permission);
+    }
+
+    /**
+     * JavaScript binding for {@code clearPermissions}.
+     */
+    public void clearPermissions() {
+        new VibePermissions().clear(this);
+    }
+
+    /**
+     * JavaScript binding for {@code setPermissions}.
+     */
+    public void setPermissions(Map<String, Object> permissions) {
+        new VibePermissions().setMany(this, permissions);
+    }
+
+    /**
+     * JavaScript binding for {@code setPermissions} with a JavaScript object.
+     */
+    public void setPermissions(Value permissions) {
+        new VibePermissions().setMany(this, permissions);
+    }
+
+    /**
+     * JavaScript binding for {@code replacePermissions}.
+     */
+    public void replacePermissions(Map<String, Object> permissions) {
+        new VibePermissions().clearAndSet(this, permissions);
+    }
+
+    /**
+     * JavaScript binding for {@code replacePermissions} with a JavaScript object.
+     */
+    public void replacePermissions(Value permissions) {
+        new VibePermissions().clearAndSet(this, permissions);
+    }
+
+    /**
+     * JavaScript binding for {@code applyWildcardPermission}.
+     */
+    public Map<String, Boolean> applyWildcardPermission(String wildcard, boolean value) {
+        return new VibePermissions().applyWildcard(this, wildcard, value);
     }
 
     /**
