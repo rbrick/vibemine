@@ -17,8 +17,10 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.scheduler.BukkitTask;
 
 public final class AgentHandler implements Listener {
     private final Agent agent;
@@ -114,16 +116,7 @@ public final class AgentHandler implements Listener {
 
         sendAgentMessage(event, Component.text(agentResponse.responseText()));
     }
-
-
-    private void stopThinkingActionBar(Player player) {
-        BukkitTask task = thinkingActionBars.remove(player.getUniqueId());
-        if (task != null) {
-            task.cancel();
-        }
-        Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> player.sendActionBar(Component.empty()));
-    }
-
+    
     private void sendGeneratedCodePreview(AsyncAgentResponseEvent event, String pluginJson) {
         event.getPlayer().sendMessage(Component.text("Generated VibePlugin JSON:", NamedTextColor.GOLD));
         event.getPlayer().sendMessage(Highlighting.json(pluginJson));
