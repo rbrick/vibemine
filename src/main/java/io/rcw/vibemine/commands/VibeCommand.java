@@ -6,6 +6,7 @@ import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.ConversationStore;
 import io.rcw.vibemine.ai.plugin.VibedPluginManager;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -158,10 +159,25 @@ public final class VibeCommand implements BasicCommand {
         }
 
         sender.sendMessage(Component.text("Vibed plugins:", NamedTextColor.GOLD));
-        persisted.forEach(name -> sender.sendMessage(Component.text(
-                "- " + name + " [" + (pluginManager.isEnabled(name) ? "enabled" : "disabled") + "]",
-                pluginManager.isEnabled(name) ? NamedTextColor.GREEN : NamedTextColor.GRAY
-        )));
+        persisted.forEach(name -> {
+
+
+            var enabled = pluginManager.isEnabled(name);
+            var ableAction = ClickEvent.runCommand(String.format("/vibe %s %s", enabled ? "disable" : "enable", name));
+            var ableButton = Component.text(enabled ? "[Disable]" : "[Enable]", enabled ? NamedTextColor.RED : NamedTextColor.GREEN)
+                    .clickEvent(ableAction);
+            var deleteButton = Component.text("[Delete]", NamedTextColor.DARK_RED)
+                    .clickEvent(ClickEvent.runCommand("/vibe delete " + name));
+            var component = Component.empty().append(
+                    Component.text("-", NamedTextColor.DARK_GRAY)
+                    ).appendSpace().append(Component.text(name, enabled ? NamedTextColor.GREEN :  NamedTextColor.GRAY))
+                    .appendSpace()
+                    .append(ableButton)
+                    .appendSpace()
+                    .append(deleteButton);
+
+            sender.sendMessage(component);
+        });
     }
 
     private void enablePlugin(CommandSender sender, String[] args) {
