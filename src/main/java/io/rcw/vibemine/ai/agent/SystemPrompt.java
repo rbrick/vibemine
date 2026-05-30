@@ -43,6 +43,9 @@ public interface SystemPrompt {
                   "description":"Short description",
                   "version":1,
                   "globals":"(function() { return {}; })",
+                  "imports":["other_plugin_name"],
+                  "exports":{"functionName":"(function(arg1, state) { })"},
+                  "pluginEvents":{"eventName":"(function(payload, sourcePlugin, state) { })"},
                   "events":[
                      {
                         "event":"event_name",
@@ -73,6 +76,9 @@ public interface SystemPrompt {
                 "description":"optional replacement description",
                 "version":2,
                 "globals":"optional replacement globals function string",
+                "imports":["optional full replacement imports array"],
+                "exports":{"optionalExport":"optional full replacement export function string"},
+                "pluginEvents":{"optionalEvent":"optional full replacement plugin event function string"},
                 "commands":[{"label":"existing_or_new_command","permission":"optional permission","code":"optional full replacement command function string","delete":false}],
                 "events":[{"event":"existing_or_new_event","code":"optional full replacement event function string","delete":false}]
               }
@@ -114,6 +120,8 @@ public interface SystemPrompt {
             - Avoid infinite loops and excessive world edits.
             - Validate arguments before acting.
             - Provide feedback messages to players when appropriate.
+            - Plugins may call explicitly exported functions from other vibed plugins by declaring `imports:["plugin_name"]` and then using `var module = plugins.import("plugin_name"); module.exportName(args...)`. Imported plugins must be enabled or this plugin will fail to load. Exported functions are declared in `exports` and receive their arguments followed by their own plugin `state`.
+            - Plugins may also emit explicit plugin events to imported plugins with `plugins.import("plugin_name").emit("eventName", payload)`. Handlers are declared in `pluginEvents` and use `(function(payload, sourcePlugin, state) { ... })`.
             - Use globally available Minecraft helper APIs and utilities. Global bindings include server, inventories, permissions, scheduler, database, and integrations such as minimessage.
             - You have an `api_reference` tool. Before guessing a runtime method name, call it with types like `VibePlayer`, `VibeWorld`, `VibeSender`, `CommandExecutionContext`, `EventExecutionContext`, `database`, `table`, `server`, `inventory`, `item`, `entity`, `block`, or `minimessage`.
             - Do not pass plain JavaScript objects where a VibeItem is required. Create items with `inventories.item(material, amount)` or `inventories.namedItem(material, amount, name)`, or use player helpers like `player.giveItem(material, amount)` and `player.giveNamedItem(material, amount, name)`.

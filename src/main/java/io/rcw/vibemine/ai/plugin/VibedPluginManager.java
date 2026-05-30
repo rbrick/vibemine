@@ -84,6 +84,44 @@ public final class VibedPluginManager {
         return plugins.containsKey(normalizeName(name));
     }
 
+    public List<String> enabledPluginNames() {
+        return plugins.keySet().stream().sorted().toList();
+    }
+
+    public void requireImport(String requester, String imported) {
+        String requesterName = normalizeName(requester);
+        String importedName = normalizeName(imported);
+        VibedPlugin requesterPlugin = plugins.get(requesterName);
+        if (requesterPlugin == null) throw new IllegalStateException("Plugin '" + requesterName + "' is not enabled");
+        if (!requesterPlugin.imports().contains(importedName)) {
+            throw new SecurityException("Plugin '" + requesterName + "' did not declare required import '" + importedName + "'");
+        }
+        if (!plugins.containsKey(importedName)) {
+            throw new IllegalStateException("Plugin '" + requesterName + "' requires missing import '" + importedName + "'");
+        }
+    }
+
+    public Set<String> exportNames(String name) {
+        VibedPlugin vibedPlugin = plugins.get(normalizeName(name));
+        return vibedPlugin == null ? Set.of() : vibedPlugin.exportNames();
+    }
+
+    public Object callExport(String pluginName, String exportName, Object[] args) {
+        VibedPlugin vibedPlugin = plugins.get(normalizeName(pluginName));
+        if (vibedPlugin == null) throw new IllegalStateException("Plugin '" + normalizeName(pluginName) + "' is not enabled");
+        return vibedPlugin.callExport(exportName, args);
+    }
+
+    public void emitPluginEvent(String sourcePlugin, String targetPlugin, String eventName, Object payload) {
+        requireImport(sourcePlugin, targetPlugin);
+        VibedPlugin target = plugins.get(normalizeName(targetPlugin));
+        if (target == null) throw new IllegalStateException("Plugin '" + normalizeName(targetPlugin) + "' is not enabled");
+        if (!target.pluginEventNames().contains(eventName)) {
+            throw new IllegalArgumentException("Plugin '" + target.name() + "' does not handle plugin event '" + eventName + "'");
+        }
+        target.executePluginEvent(eventName, payload, normalizeName(sourcePlugin));
+    }
+
     public synchronized VibedPlugin enablePlugin(String name) throws IOException {
         String normalized = normalizeName(name);
         Path path = pluginsDirectory.resolve(normalized + ".json");
@@ -104,13 +142,27 @@ public final class VibedPluginManager {
 
     public void loadAll() {
         try (var paths = Files.list(pluginsDirectory)) {
-            paths.filter(path -> path.toString().endsWith(".json")).forEach(path -> {
+            List<Path> pluginPaths = paths.filter(path -> path.toString().endsWith(".json")).toList();
+            Map<String, Path> pathByName = new HashMap<>();
+            List<VibedPluginSchema> schemas = new ArrayList<>();
+            for (Path path : pluginPaths) {
+                try {
+                    VibedPluginSchema schema = parseSchema(Files.readString(path, StandardCharsets.UTF_8));
+                    schemas.add(schema);
+                    pathByName.put(normalizeName(schema.name()), path);
+                } catch (Exception exception) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to read vibed plugin " + path.getFileName(), exception);
+                }
+            }
+            for (VibedPluginSchema schema : VibedPluginDependencies.loadOrder(schemas)) {
+                Path path = pathByName.get(normalizeName(schema.name()));
+                if (path == null || plugins.containsKey(normalizeName(schema.name()))) continue;
                 try {
                     load(path);
                 } catch (Exception exception) {
                     plugin.getLogger().log(Level.WARNING, "Failed to load vibed plugin " + path.getFileName(), exception);
                 }
-            });
+            }
         } catch (IOException exception) {
             plugin.getLogger().log(Level.WARNING, "Failed to list vibed plugins", exception);
         }
@@ -141,6 +193,9 @@ public final class VibedPluginManager {
         copyIfPresent(patch, existing, "description");
         copyIfPresent(patch, existing, "globals");
         copyIfPresent(patch, existing, "version");
+        copyIfPresent(patch, existing, "imports");
+        copyIfPresent(patch, existing, "exports");
+        copyIfPresent(patch, existing, "pluginEvents");
         patchArrayByKey(existing, patch, "commands", "label");
         patchArrayByKey(existing, patch, "events", "event");
 
@@ -227,6 +282,7 @@ public final class VibedPluginManager {
             unload(name);
         }
         VibedPlugin vibedPlugin = new VibedPlugin(plugin, schema);
+        validateImports(vibedPlugin);
         vibedPlugin.enable();
         plugins.put(vibedPlugin.name(), vibedPlugin);
         plugin.getLogger().info("Loaded vibed plugin '" + vibedPlugin.name() + "' with " + vibedPlugin.events().size() + " events and " + vibedPlugin.commands().size() + " commands");
@@ -239,6 +295,28 @@ public final class VibedPluginManager {
         return vibedPlugin;
     }
 
+    private void validateImports(VibedPlugin vibedPlugin) {
+        for (String imported : vibedPlugin.imports()) {
+            if (imported.equals(vibedPlugin.name())) {
+                throw new IllegalStateException("Cannot enable vibed plugin '" + vibedPlugin.name() + "': plugins cannot import themselves");
+            }
+            if (!plugins.containsKey(imported)) {
+                throw new IllegalStateException("Cannot enable vibed plugin '" + vibedPlugin.name() + "': missing required import '" + imported + "'");
+            }
+        }
+    }
+
+    private void unloadDependents(String dependency) {
+        List<String> dependents = plugins.values().stream()
+                .filter(candidate -> candidate.imports().contains(dependency))
+                .map(VibedPlugin::name)
+                .toList();
+        dependents.forEach(dependent -> {
+            plugin.getLogger().warning("Disabling vibed plugin '" + dependent + "' because required import '" + dependency + "' was unloaded");
+            unload(dependent);
+        });
+    }
+
     public synchronized boolean unload(String name) {
         VibedPlugin removed = plugins.remove(normalizeName(name));
         if (removed == null) return false;
@@ -248,6 +326,7 @@ public final class VibedPluginManager {
             return entry.getValue().isEmpty();
         });
         removed.commands().forEach(command -> Optional.ofNullable(registeredCommands.remove(command.label())).ifPresent(this::unregisterCommand));
+        unloadDependents(removed.name());
         refreshPlayerCommandTrees();
         return true;
     }

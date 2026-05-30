@@ -42,7 +42,7 @@ public final class VibedPlugin {
                 .allowHostClassLookup(name -> false)
                 .build();
         scheduler = new VibeScheduler();
-        VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name());
+        VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name(), plugin.getVibedPluginManager());
         String globals = schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals();
         validateJavaScript(globals);
         state = context.eval("js", globals).execute();
@@ -63,6 +63,24 @@ public final class VibedPlugin {
     public String description() { return schema.description() == null ? "" : schema.description(); }
     public List<VibedCommand> commands() { return commands; }
     public List<VibedEvent> events() { return List.copyOf(events.values()); }
+    public List<String> imports() { return safeList(schema.imports()).stream().map(VibedPluginManager::normalizeName).toList(); }
+    public java.util.Set<String> exportNames() { return schema.exports() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.exports().keySet()); }
+    public java.util.Set<String> pluginEventNames() { return schema.pluginEvents() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.pluginEvents().keySet()); }
+
+    public Object callExport(String exportName, Object[] args) {
+        if (schema.exports() == null || !schema.exports().containsKey(exportName)) {
+            throw new IllegalArgumentException("Plugin '" + name() + "' does not export '" + exportName + "'");
+        }
+        Object[] withState = java.util.Arrays.copyOf(args, args.length + 1);
+        withState[args.length] = state;
+        Value result = evalFunction(schema.exports().get(exportName)).execute(withState);
+        return result == null || result.isNull() ? null : result.as(Object.class);
+    }
+
+    public void executePluginEvent(String eventName, Object payload, String sourcePlugin) {
+        if (schema.pluginEvents() == null || !schema.pluginEvents().containsKey(eventName)) return;
+        runOnMainThread(() -> evalFunction(schema.pluginEvents().get(eventName)).execute(payload, sourcePlugin, state));
+    }
 
     public void executeCommand(String label, org.bukkit.command.CommandSender sender, String[] args) {
         VibedCommand command = commands.stream().filter(candidate -> candidate.label().equals(label)).findFirst().orElse(null);
