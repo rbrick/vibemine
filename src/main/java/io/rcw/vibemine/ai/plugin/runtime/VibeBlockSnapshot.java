@@ -58,7 +58,7 @@ public final class VibeBlockSnapshot {
 
     public VibeWorld getWorld() {
         World world = Bukkit.getWorld(worldName);
-        return world == null ? null : VibeRuntimeCache.world(world);
+        return world == null ? null : VibeRuntimeWrappers.world(world);
     }
 
     /** Restore this snapshot at its original location without triggering physics updates. */

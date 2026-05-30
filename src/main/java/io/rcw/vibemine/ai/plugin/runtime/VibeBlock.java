@@ -107,7 +107,7 @@ public final class VibeBlock {
     /**
      * JavaScript binding for {@code getWorld}.
      */
-    public VibeWorld getWorld() { return VibeRuntimeCache.world(this.block.getWorld()); }
+    public VibeWorld getWorld() { return VibeRuntimeWrappers.world(this.block.getWorld()); }
 
     /**
      * JavaScript binding for {@code unwrap}.

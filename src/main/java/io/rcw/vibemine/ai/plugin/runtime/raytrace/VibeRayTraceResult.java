@@ -3,7 +3,7 @@ package io.rcw.vibemine.ai.plugin.runtime.raytrace;
 import io.rcw.vibemine.ai.plugin.runtime.VibeBlock;
 import io.rcw.vibemine.ai.plugin.runtime.VibeEntity;
 import io.rcw.vibemine.ai.plugin.runtime.VibeLocation;
-import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeCache;
+import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeWrappers;
 import org.bukkit.util.RayTraceResult;
 
 /**
@@ -40,14 +40,14 @@ public final class VibeRayTraceResult {
      * Returns the hit block, or {@code null} if no block was hit.
      */
     public VibeBlock getBlock() {
-        return this.result == null ? null : VibeRuntimeCache.block(this.result.getHitBlock());
+        return this.result == null ? null : VibeRuntimeWrappers.block(this.result.getHitBlock());
     }
 
     /**
      * Returns the hit entity, or {@code null} if no entity was hit.
      */
     public VibeEntity getEntity() {
-        return this.result == null ? null : VibeRuntimeCache.entity(this.result.getHitEntity());
+        return this.result == null ? null : VibeRuntimeWrappers.entity(this.result.getHitEntity());
     }
 
     /**

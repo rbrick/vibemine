@@ -43,13 +43,13 @@ public final class VibePlayer extends VibeSender {
     /**
      * JavaScript binding for {@code getWorld}.
      */
-    public VibeWorld getWorld() { return VibeRuntimeCache.world(this.player.getWorld()); }
+    public VibeWorld getWorld() { return VibeRuntimeWrappers.world(this.player.getWorld()); }
     /**
      * JavaScript binding for {@code getTargetBlock}.
      */
     public VibeBlock getTargetBlock(int maxDistance) {
         Block block = this.player.getTargetBlockExact(maxDistance);
-        return VibeRuntimeCache.block(block);
+        return VibeRuntimeWrappers.block(block);
     }
 
     /**
@@ -252,11 +252,11 @@ public final class VibePlayer extends VibeSender {
     /**
      * JavaScript binding for {@code getInventory}.
      */
-    public VibeInventory getInventory() { return VibeRuntimeCache.inventory(this.player.getInventory()); }
+    public VibeInventory getInventory() { return VibeRuntimeWrappers.inventory(this.player.getInventory()); }
     /**
      * JavaScript binding for {@code getEnderChest}.
      */
-    public VibeInventory getEnderChest() { return VibeRuntimeCache.inventory(this.player.getEnderChest()); }
+    public VibeInventory getEnderChest() { return VibeRuntimeWrappers.inventory(this.player.getEnderChest()); }
     /**
      * JavaScript binding for {@code openInventory}.
      */

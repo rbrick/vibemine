@@ -50,10 +50,10 @@ public final class VibeRuntimeBindings {
 
     public static void install(Value bindings, CommandSender sender) {
         install(bindings);
-        bindings.putMember("sender", VibeRuntimeCache.sender(sender));
+        bindings.putMember("sender", VibeRuntimeWrappers.sender(sender));
         if (sender instanceof Player player) {
-            bindings.putMember("player", VibeRuntimeCache.player(player));
-            bindings.putMember("world", VibeRuntimeCache.world(player.getWorld()));
+            bindings.putMember("player", VibeRuntimeWrappers.player(player));
+            bindings.putMember("world", VibeRuntimeWrappers.world(player.getWorld()));
         }
     }
 
@@ -64,10 +64,10 @@ public final class VibeRuntimeBindings {
     public static VibeScheduler install(Value bindings, CommandSender sender, Context context) {
         var scheduler = new VibeScheduler(context, new AtomicInteger(), new AtomicBoolean(false), new AtomicBoolean(false));
         install(bindings, scheduler);
-        bindings.putMember("sender", VibeRuntimeCache.sender(sender));
+        bindings.putMember("sender", VibeRuntimeWrappers.sender(sender));
         if (sender instanceof Player player) {
-            bindings.putMember("player", VibeRuntimeCache.player(player));
-            bindings.putMember("world", VibeRuntimeCache.world(player.getWorld()));
+            bindings.putMember("player", VibeRuntimeWrappers.player(player));
+            bindings.putMember("world", VibeRuntimeWrappers.world(player.getWorld()));
         }
         return scheduler;
     }

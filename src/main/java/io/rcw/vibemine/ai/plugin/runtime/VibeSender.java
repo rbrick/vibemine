@@ -53,7 +53,7 @@ public class VibeSender {
      * JavaScript binding for {@code asPlayer}.
      */
     public VibePlayer asPlayer() {
-        return this.sender instanceof Player player ? VibeRuntimeCache.player(player) : null;
+        return this.sender instanceof Player player ? VibeRuntimeWrappers.player(player) : null;
     }
 
     /**
