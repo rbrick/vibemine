@@ -27,6 +27,8 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
 
+    testImplementation("com.google.code.gson:gson:2.11.0")
+
     // include openai
     implementation("com.openai:openai-java:4.35.0")
 
