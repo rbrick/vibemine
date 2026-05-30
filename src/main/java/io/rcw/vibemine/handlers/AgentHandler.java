@@ -42,7 +42,7 @@ public final class AgentHandler implements Listener {
         agent.generateFromConversation(event.getConversation()).whenComplete((agentResponse, throwable) -> {
             actionBar.setThinking(event.getPlayer(), false);
             if (throwable != null) {
-                event.getPlayer().sendMessage(Component.text("Viber tripped while thinking: " + throwable.getMessage(), NamedTextColor.RED));
+                event.getPlayer().sendMessage(Component.text("Viber tripped while thinking: " + describeThrowable(throwable), NamedTextColor.RED));
                 return;
             }
             if (agentResponse != null) {
@@ -119,6 +119,15 @@ public final class AgentHandler implements Listener {
         sendAgentMessage(event, Component.text(agentResponse.responseText()));
     }
     
+    private String describeThrowable(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && (current instanceof java.util.concurrent.CompletionException || current instanceof java.util.concurrent.ExecutionException)) {
+            current = current.getCause();
+        }
+        String message = current.getMessage();
+        return current.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
+    }
+
     private void recordAgentOutputTokens(AsyncAgentResponseEvent event, String rawMessage) {
         event.getConversation().addEstimatedOutputTokens(TokenEstimator.estimate(rawMessage));
     }
@@ -131,7 +140,7 @@ public final class AgentHandler implements Listener {
         if (schema == null) return;
 
         if (schema.globals() != null && !schema.globals().isBlank()) {
-            event.getPlayer().sendMessage(Component.text("globals.js", NamedTextColor.GOLD));
+            event.getPlayer().sendMessage(Component.text(schema.globalsPath() == null || schema.globalsPath().isBlank() ? "globals.js" : schema.globalsPath(), NamedTextColor.GOLD));
             event.getPlayer().sendMessage(Highlighting.javascript(schema.globals()));
         }
         if (schema.commands() != null) {

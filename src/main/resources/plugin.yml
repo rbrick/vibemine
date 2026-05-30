@@ -20,3 +20,5 @@ permissions:
     default: op
   vibemine.vibe.plugins.delete:
     default: op
+  vibemine.vibe.plugins.translate:
+    default: op

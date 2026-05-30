@@ -23,8 +23,9 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
         }.getType());
 
         int estimatedOutputTokens = object.has("estimatedOutputTokens") ? object.get("estimatedOutputTokens").getAsInt() : 0;
+        int estimatedToolTokens = object.has("estimatedToolTokens") ? object.get("estimatedToolTokens").getAsInt() : 0;
 
-        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages, estimatedOutputTokens);
+        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages, estimatedOutputTokens, estimatedToolTokens);
     }
 
     @Override
@@ -34,6 +35,7 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
         object.addProperty("session", src.getSessionId().toString());
         object.addProperty("playerId", src.getPlayerId().toString());
         object.addProperty("estimatedOutputTokens", src.getEstimatedOutputTokens());
+        object.addProperty("estimatedToolTokens", src.getEstimatedToolTokens());
         object.add("messages", context.serialize(src.getMessages()));
 
         return object;

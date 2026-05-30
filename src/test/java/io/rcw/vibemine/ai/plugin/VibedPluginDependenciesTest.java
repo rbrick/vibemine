@@ -62,6 +62,7 @@ final class VibedPluginDependenciesTest {
                 name,
                 "test plugin",
                 "(function() { return {}; })",
+                null,
                 1,
                 imports,
                 Map.of("ping", "(function(state) { return 'pong'; })"),
