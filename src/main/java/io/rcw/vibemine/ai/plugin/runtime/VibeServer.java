@@ -57,14 +57,14 @@ public final class VibeServer {
      */
     public VibePlayer getPlayer(String name) {
         Player player = Bukkit.getPlayerExact(name);
-        return VibeRuntimeCache.player(player);
+        return VibeRuntimeWrappers.player(player);
     }
 
     /**
      * JavaScript binding for {@code getOnlinePlayers}.
      */
     public List<VibePlayer> getOnlinePlayers() {
-        return Bukkit.getOnlinePlayers().stream().map(VibeRuntimeCache::player).toList();
+        return Bukkit.getOnlinePlayers().stream().map(VibeRuntimeWrappers::player).toList();
     }
 
     /**
@@ -72,14 +72,14 @@ public final class VibeServer {
      */
     public VibeWorld getWorld(String name) {
         World world = Bukkit.getWorld(name);
-        return VibeRuntimeCache.world(world);
+        return VibeRuntimeWrappers.world(world);
     }
 
     /**
      * JavaScript binding for {@code getWorlds}.
      */
     public List<VibeWorld> getWorlds() {
-        return Bukkit.getWorlds().stream().map(VibeRuntimeCache::world).toList();
+        return Bukkit.getWorlds().stream().map(VibeRuntimeWrappers::world).toList();
     }
 
     /**

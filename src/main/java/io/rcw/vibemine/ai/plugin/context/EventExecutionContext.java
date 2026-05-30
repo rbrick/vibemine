@@ -49,25 +49,25 @@ public final class EventExecutionContext implements ExecutionContext {
     }
 
     public VibePlayer getPlayer() {
-        if (event instanceof PlayerEvent playerEvent) return VibeRuntimeCache.player(playerEvent.getPlayer());
-        if (event instanceof BlockBreakEvent blockBreakEvent) return VibeRuntimeCache.player(blockBreakEvent.getPlayer());
-        if (event instanceof BlockPlaceEvent blockPlaceEvent) return VibeRuntimeCache.player(blockPlaceEvent.getPlayer());
+        if (event instanceof PlayerEvent playerEvent) return VibeRuntimeWrappers.player(playerEvent.getPlayer());
+        if (event instanceof BlockBreakEvent blockBreakEvent) return VibeRuntimeWrappers.player(blockBreakEvent.getPlayer());
+        if (event instanceof BlockPlaceEvent blockPlaceEvent) return VibeRuntimeWrappers.player(blockPlaceEvent.getPlayer());
         return null;
     }
 
     public VibeBlock getBlock() {
-        if (event instanceof BlockEvent blockEvent) return VibeRuntimeCache.block(blockEvent.getBlock());
-        if (event instanceof PlayerInteractEvent interactEvent) return VibeRuntimeCache.block(interactEvent.getClickedBlock());
+        if (event instanceof BlockEvent blockEvent) return VibeRuntimeWrappers.block(blockEvent.getBlock());
+        if (event instanceof PlayerInteractEvent interactEvent) return VibeRuntimeWrappers.block(interactEvent.getClickedBlock());
         return null;
     }
 
     public VibeEntity getEntity() {
-        if (event instanceof EntityEvent entityEvent) return VibeRuntimeCache.entity(entityEvent.getEntity());
+        if (event instanceof EntityEvent entityEvent) return VibeRuntimeWrappers.entity(entityEvent.getEntity());
         return null;
     }
 
     public VibeEntity getDamager() {
-        if (event instanceof EntityDamageByEntityEvent damageEvent) return VibeRuntimeCache.entity(damageEvent.getDamager());
+        if (event instanceof EntityDamageByEntityEvent damageEvent) return VibeRuntimeWrappers.entity(damageEvent.getDamager());
         return null;
     }
 

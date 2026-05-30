@@ -23,6 +23,10 @@ public final class VibedPlugin {
     private final VibedPluginSchema schema;
     private final Map<String, VibedEvent> events = new ConcurrentHashMap<>();
     private final List<VibedCommand> commands;
+    private final Map<String, Value> compiledCommands = new ConcurrentHashMap<>();
+    private final Map<String, Value> compiledEvents = new ConcurrentHashMap<>();
+    private final Map<String, Value> compiledExports = new ConcurrentHashMap<>();
+    private final Map<String, Value> compiledPluginEvents = new ConcurrentHashMap<>();
     private Context context;
     private Value state;
     private VibeScheduler scheduler;
@@ -42,13 +46,18 @@ public final class VibedPlugin {
                 .allowHostClassLookup(name -> false)
                 .build();
         scheduler = new VibeScheduler();
-        VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name());
+        VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name(), plugin.getVibedPluginManager());
         String globals = schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals();
         validateJavaScript(globals);
         state = context.eval("js", globals).execute();
+        compileScripts();
     }
 
     public void disable() {
+        compiledCommands.clear();
+        compiledEvents.clear();
+        compiledExports.clear();
+        compiledPluginEvents.clear();
         if (scheduler != null) {
             scheduler.cancelAll();
             scheduler = null;
@@ -63,11 +72,32 @@ public final class VibedPlugin {
     public String description() { return schema.description() == null ? "" : schema.description(); }
     public List<VibedCommand> commands() { return commands; }
     public List<VibedEvent> events() { return List.copyOf(events.values()); }
+    public List<String> imports() { return safeList(schema.imports()).stream().map(VibedPluginManager::normalizeName).toList(); }
+    public java.util.Set<String> exportNames() { return schema.exports() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.exports().keySet()); }
+    public java.util.Set<String> pluginEventNames() { return schema.pluginEvents() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.pluginEvents().keySet()); }
+
+    public Object callExport(String exportName, Object[] args) {
+        if (schema.exports() == null || !schema.exports().containsKey(exportName)) {
+            throw new IllegalArgumentException("Plugin '" + name() + "' does not export '" + exportName + "'");
+        }
+        Object[] withState = java.util.Arrays.copyOf(args, args.length + 1);
+        withState[args.length] = state;
+        Value function = compiledExports.get(exportName);
+        if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
+        Value result = function.execute(withState);
+        return result == null || result.isNull() ? null : result.as(Object.class);
+    }
+
+    public void executePluginEvent(String eventName, Object payload, String sourcePlugin) {
+        Value function = compiledPluginEvents.get(eventName);
+        if (function == null) return;
+        runOnMainThread(() -> function.execute(payload, sourcePlugin, state));
+    }
 
     public void executeCommand(String label, org.bukkit.command.CommandSender sender, String[] args) {
-        VibedCommand command = commands.stream().filter(candidate -> candidate.label().equals(label)).findFirst().orElse(null);
-        if (command == null) return;
-        runOnMainThread(() -> command.executeSource(sender, args, state));
+        Value function = compiledCommands.get(VibedPluginManager.normalizeName(label));
+        if (function == null) return;
+        runOnMainThread(() -> function.execute(new io.rcw.vibemine.ai.plugin.context.CommandExecutionContext(sender, args), state));
     }
 
     public void executeEvent(String eventName, Event event) {
@@ -80,7 +110,9 @@ public final class VibedPlugin {
         plugin.getLogger().info("Vibed plugin '" + name() + "' scheduling event '" + normalizedEventName + "' from " + event.getClass().getSimpleName());
         Runnable runnable = () -> {
             plugin.getLogger().info("Vibed plugin '" + name() + "' running event '" + normalizedEventName + "'");
-            vibedEvent.executeSource(event, state);
+            Value function = compiledEvents.get(normalizedEventName);
+            if (function == null) return;
+            function.execute(new io.rcw.vibemine.ai.plugin.context.EventExecutionContext(normalizedEventName, event), state);
             plugin.getLogger().info("Vibed plugin '" + name() + "' finished event '" + normalizedEventName + "'");
         };
 
@@ -95,6 +127,17 @@ public final class VibedPlugin {
         if (context == null) throw new IllegalStateException("Plugin is not enabled");
         validateJavaScript(sourceCode);
         return context.eval("js", sourceCode);
+    }
+
+    private void compileScripts() {
+        commands.forEach(command -> compiledCommands.put(command.label(), evalFunction(command.sourceCode())));
+        events.forEach((eventName, event) -> compiledEvents.put(eventName, evalFunction(event.sourceCode())));
+        if (schema.exports() != null) {
+            schema.exports().forEach((exportName, sourceCode) -> compiledExports.put(exportName, evalFunction(sourceCode)));
+        }
+        if (schema.pluginEvents() != null) {
+            schema.pluginEvents().forEach((eventName, sourceCode) -> compiledPluginEvents.put(eventName, evalFunction(sourceCode)));
+        }
     }
 
     private void validateJavaScript(String sourceCode) {

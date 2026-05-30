@@ -51,7 +51,7 @@ public final class VibeWorld {
      * JavaScript binding for {@code getBlockAt}.
      */
     public VibeBlock getBlockAt(int x, int y, int z) {
-        return VibeRuntimeCache.block(this.world.getBlockAt(x, y, z));
+        return VibeRuntimeWrappers.block(this.world.getBlockAt(x, y, z));
     }
 
     /**
@@ -90,7 +90,7 @@ public final class VibeWorld {
      */
     public VibeEntity spawnEntity(String entityType, VibeLocation location) {
         EntityType type = EntityType.valueOf(entityType.toUpperCase());
-        return VibeRuntimeCache.entity(this.world.spawnEntity(location.unwrap(), type));
+        return VibeRuntimeWrappers.entity(this.world.spawnEntity(location.unwrap(), type));
     }
 
     /**

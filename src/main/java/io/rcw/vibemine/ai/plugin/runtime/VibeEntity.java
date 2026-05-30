@@ -39,7 +39,7 @@ public class VibeEntity {
     /**
      * JavaScript binding for {@code getWorld}.
      */
-    public VibeWorld getWorld() { return VibeRuntimeCache.world(this.entity.getWorld()); }
+    public VibeWorld getWorld() { return VibeRuntimeWrappers.world(this.entity.getWorld()); }
     /**
      * JavaScript binding for {@code isDead}.
      */

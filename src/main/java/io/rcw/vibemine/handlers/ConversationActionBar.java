@@ -77,7 +77,9 @@ public final class ConversationActionBar {
     private String estimateTokenText(Conversation conversation) {
         TokenMeasurement measurement = estimateTokens(conversation);
         return "~" + TokenEstimator.compact(measurement.inputTokens()) + " in / ~"
-                + TokenEstimator.compact(measurement.outputTokens()) + " out tokens";
+                + TokenEstimator.compact(measurement.outputTokens()) + " out"
+                + (measurement.toolTokens() > 0 ? " / ~" + TokenEstimator.compact(measurement.toolTokens()) + " tools" : "")
+                + " tokens";
     }
 
     private TokenMeasurement estimateTokens(Conversation conversation) {
@@ -93,10 +95,11 @@ public final class ConversationActionBar {
                 .forEach(message -> output.append(message.message()).append('\n'));
 
         return new TokenMeasurement(
-                TokenEstimator.estimate(input.toString()),
-                TokenEstimator.estimate(output.toString())
+                TokenEstimator.estimate(input.toString()) + conversation.getEstimatedToolTokens(),
+                Math.max(TokenEstimator.estimate(output.toString()), conversation.getEstimatedOutputTokens()),
+                conversation.getEstimatedToolTokens()
         );
     }
 
-    private record TokenMeasurement(int inputTokens, int outputTokens) {}
+    private record TokenMeasurement(int inputTokens, int outputTokens, int toolTokens) {}
 }

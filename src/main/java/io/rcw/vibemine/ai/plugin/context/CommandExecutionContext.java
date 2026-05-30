@@ -1,7 +1,7 @@
 package io.rcw.vibemine.ai.plugin.context;
 
 import io.rcw.vibemine.ai.plugin.ExecutionContext;
-import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeCache;
+import io.rcw.vibemine.ai.plugin.runtime.VibeRuntimeWrappers;
 import io.rcw.vibemine.ai.plugin.runtime.VibePlayer;
 import io.rcw.vibemine.ai.plugin.runtime.VibeSender;
 import io.rcw.vibemine.ai.plugin.runtime.VibeWorld;
@@ -18,10 +18,10 @@ public final class CommandExecutionContext implements ExecutionContext {
     private final VibeWorld world;
 
     public CommandExecutionContext(CommandSender sender, String[] args) {
-        this.sender = VibeRuntimeCache.sender(sender);
-        this.player = sender instanceof Player player ? VibeRuntimeCache.player(player) : null;
+        this.sender = VibeRuntimeWrappers.sender(sender);
+        this.player = sender instanceof Player player ? VibeRuntimeWrappers.player(player) : null;
         this.args = List.copyOf(Arrays.asList(args));
-        this.world = sender instanceof Player player ? VibeRuntimeCache.world(player.getWorld()) : null;
+        this.world = sender instanceof Player player ? VibeRuntimeWrappers.world(player.getWorld()) : null;
     }
 
     public VibeSender getSender() {

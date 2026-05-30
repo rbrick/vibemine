@@ -40,13 +40,16 @@ public final class PluginContextTool implements Tool<PluginContextTool.PluginCon
             Files.createDirectories(directory);
             List<Path> pluginFiles;
             try (var paths = Files.list(directory)) {
-                pluginFiles = paths.filter(path -> path.toString().endsWith(".json"))
+                pluginFiles = paths
+                        .filter(Files::isDirectory)
+                        .map(path -> path.resolve("plugin.json"))
+                        .filter(Files::exists)
                         .sorted(Comparator.comparingLong(this::lastModified).reversed())
                         .toList();
             }
 
             List<String> names = pluginFiles.stream()
-                    .map(path -> path.getFileName().toString().replaceFirst("\\.json$", ""))
+                    .map(path -> path.getParent().getFileName().toString())
                     .toList();
 
             if (pluginFiles.isEmpty()) return new PluginContextOutput(names, null, null);
@@ -55,7 +58,7 @@ public final class PluginContextTool implements Tool<PluginContextTool.PluginCon
             if (selected.isEmpty()) return new PluginContextOutput(names, null, "Unknown plugin: " + input.name());
 
             Path path = selected.get();
-            String name = path.getFileName().toString().replaceFirst("\\.json$", "");
+            String name = path.getParent().getFileName().toString();
             return new PluginContextOutput(names, new PluginSummary(name, lastModified(path), Files.readString(path, StandardCharsets.UTF_8)), null);
         } catch (IOException exception) {
             return PluginContextOutput.error(exception.getMessage());
@@ -68,7 +71,7 @@ public final class PluginContextTool implements Tool<PluginContextTool.PluginCon
         }
         String normalized = rawName.toLowerCase().replaceAll("[^a-z0-9_]+", "_").replaceAll("^_+|_+$", "");
         return pluginFiles.stream()
-                .filter(path -> path.getFileName().toString().replaceFirst("\\.json$", "").equalsIgnoreCase(normalized))
+                .filter(path -> path.getParent().getFileName().toString().equalsIgnoreCase(normalized))
                 .findFirst();
     }
 
@@ -85,7 +88,7 @@ public final class PluginContextTool implements Tool<PluginContextTool.PluginCon
         return """
                 Get the JSON for an existing/generated VibePlugin so you can update or expand it instead of starting from scratch.
                 Input: {"name":"plugin_name"}. Omit name or use "latest" for the most recently modified plugin.
-                When modifying a plugin, return the complete updated plugin JSON with the same plugin name.
+                When modifying a plugin, use file_read/file_edit/file_write on plugin.json, globals.js, commands/*.js, and events/*.js.
                 """;
     }
 }

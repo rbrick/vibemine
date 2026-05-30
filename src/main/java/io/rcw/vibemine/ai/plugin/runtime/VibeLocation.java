@@ -68,14 +68,14 @@ public final class VibeLocation {
      * JavaScript binding for {@code getBlock}.
      */
     public VibeBlock getBlock() {
-        return VibeRuntimeCache.block(this.location.getBlock());
+        return VibeRuntimeWrappers.block(this.location.getBlock());
     }
 
     /**
      * JavaScript binding for {@code getWorld}
      */
     public VibeWorld getWorld() {
-        return VibeRuntimeCache.world(this.location.getWorld());
+        return VibeRuntimeWrappers.world(this.location.getWorld());
     }
 
     /**

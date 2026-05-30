@@ -24,6 +24,7 @@ package io.rcw.vibemine.ai.plugin.schema;
 
 
 import java.util.List;
+import java.util.Map;
 
-public record VibedPluginSchema(String name, String description, String globals, int version, List<Command> commands, List<Event> events) {
+public record VibedPluginSchema(String name, String description, String globals, String globalsPath, int version, List<String> imports, Map<String, String> exports, Map<String, String> pluginEvents, List<Command> commands, List<Event> events) {
 }

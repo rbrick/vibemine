@@ -43,7 +43,8 @@ public final class VibeCommand implements BasicCommand {
                 || sender.hasPermission("vibemine.vibe.plugins")
                 || sender.hasPermission("vibemine.vibe.plugins.enable")
                 || sender.hasPermission("vibemine.vibe.plugins.disable")
-                || sender.hasPermission("vibemine.vibe.plugins.delete");
+                || sender.hasPermission("vibemine.vibe.plugins.delete")
+                || sender.hasPermission("vibemine.vibe.plugins.translate");
     }
 
     @Override
@@ -54,7 +55,7 @@ public final class VibeCommand implements BasicCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String @NonNull [] args) {
         if (args.length == 0 || args.length == 1) {
-            return List.of("start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete").stream()
+            return List.of("start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate").stream()
                     .filter(command -> args.length == 0 || command.startsWith(args[0].toLowerCase()))
                     .toList();
         }
@@ -62,6 +63,11 @@ public final class VibeCommand implements BasicCommand {
             return conversationStore.list(player.getUniqueId(), 10).stream()
                     .map(session -> session.sessionId().toString())
                     .filter(id -> id.startsWith(args[1].toLowerCase()))
+                    .toList();
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("translate")) {
+            return pluginManager.oldPluginNames().stream()
+                    .filter(name -> name.startsWith(args[1].toLowerCase()))
                     .toList();
         }
         if (args.length == 2 && List.of("enable", "disable", "delete").contains(args[0].toLowerCase())) {
@@ -89,6 +95,7 @@ public final class VibeCommand implements BasicCommand {
             case "enable" -> enablePlugin(sender, args);
             case "disable" -> disablePlugin(sender, args);
             case "delete", "remove" -> deletePlugin(sender, args);
+            case "translate" -> translatePlugin(sender, args);
             default -> help(sender);
         }
     }
@@ -226,6 +233,20 @@ public final class VibeCommand implements BasicCommand {
         }
     }
 
+    private void translatePlugin(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "vibemine.vibe.plugins.translate")) return;
+        if (!requirePluginName(sender, args, "translate")) return;
+
+        try {
+            var plugin = pluginManager.translateOldPlugin(args[1]);
+            sender.sendMessage(Component.text("Translated and enabled vibed plugin '" + plugin.name() + "'.", NamedTextColor.GREEN));
+        } catch (IOException exception) {
+            sender.sendMessage(Component.text("Could not translate vibed plugin '" + args[1] + "': " + exception.getMessage(), NamedTextColor.RED));
+        } catch (RuntimeException exception) {
+            sender.sendMessage(Component.text("Could not translate vibed plugin '" + args[1] + "': " + exception.getMessage(), NamedTextColor.RED));
+        }
+    }
+
     private boolean requirePluginName(CommandSender sender, String[] args, String command) {
         if (args.length >= 2 && !args[1].isBlank()) return true;
         sender.sendMessage(Component.text("Usage: /vibe " + command + " <plugin>", NamedTextColor.YELLOW));
@@ -241,6 +262,7 @@ public final class VibeCommand implements BasicCommand {
         sender.sendMessage(Component.text("/vibe enable <plugin>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe disable <plugin>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe delete <plugin>", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe translate <old-plugin>", NamedTextColor.YELLOW));
     }
 
     private java.util.Optional<Conversation> loadSession(Player player, String rawSessionId) {

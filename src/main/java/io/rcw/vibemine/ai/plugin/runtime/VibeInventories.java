@@ -18,7 +18,7 @@ public final class VibeInventories {
      */
     public VibeInventory chest(int rows, String title) {
         if (rows < 1 || rows > 6) throw new IllegalArgumentException("Chest rows must be between 1 and 6");
-        return VibeRuntimeCache.inventory(Bukkit.createInventory(null, rows * 9, VibeText.component(title)));
+        return VibeRuntimeWrappers.inventory(Bukkit.createInventory(null, rows * 9, VibeText.component(title)));
     }
 
     /**
@@ -26,7 +26,7 @@ public final class VibeInventories {
      */
     public VibeInventory typed(String type, String title) {
         InventoryType inventoryType = InventoryType.valueOf(type.toUpperCase());
-        return VibeRuntimeCache.inventory(Bukkit.createInventory(null, inventoryType, VibeText.component(title)));
+        return VibeRuntimeWrappers.inventory(Bukkit.createInventory(null, inventoryType, VibeText.component(title)));
     }
 
     /**

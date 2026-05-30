@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
+import io.rcw.vibemine.ai.plugin.VibedPluginManager;
 import io.rcw.vibemine.ai.plugin.integrations.VibeIntegrations;
 import io.rcw.vibemine.ai.plugin.runtime.database.VibeKeyStore;
 import io.rcw.vibemine.ai.plugin.runtime.permissions.VibePermissions;
@@ -41,6 +42,11 @@ public final class VibeRuntimeBindings {
         bindings.putMember("database", new VibeKeyStore(namespace));
     }
 
+    public static void install(Value bindings, VibeScheduler scheduler, String namespace, VibedPluginManager pluginManager) {
+        install(bindings, scheduler, namespace);
+        bindings.putMember("plugins", new VibePluginRegistry(pluginManager, namespace));
+    }
+
     /**
      * JavaScript binding for {@code install}.
      */
@@ -50,10 +56,10 @@ public final class VibeRuntimeBindings {
 
     public static void install(Value bindings, CommandSender sender) {
         install(bindings);
-        bindings.putMember("sender", VibeRuntimeCache.sender(sender));
+        bindings.putMember("sender", VibeRuntimeWrappers.sender(sender));
         if (sender instanceof Player player) {
-            bindings.putMember("player", VibeRuntimeCache.player(player));
-            bindings.putMember("world", VibeRuntimeCache.world(player.getWorld()));
+            bindings.putMember("player", VibeRuntimeWrappers.player(player));
+            bindings.putMember("world", VibeRuntimeWrappers.world(player.getWorld()));
         }
     }
 
@@ -64,10 +70,10 @@ public final class VibeRuntimeBindings {
     public static VibeScheduler install(Value bindings, CommandSender sender, Context context) {
         var scheduler = new VibeScheduler(context, new AtomicInteger(), new AtomicBoolean(false), new AtomicBoolean(false));
         install(bindings, scheduler);
-        bindings.putMember("sender", VibeRuntimeCache.sender(sender));
+        bindings.putMember("sender", VibeRuntimeWrappers.sender(sender));
         if (sender instanceof Player player) {
-            bindings.putMember("player", VibeRuntimeCache.player(player));
-            bindings.putMember("world", VibeRuntimeCache.world(player.getWorld()));
+            bindings.putMember("player", VibeRuntimeWrappers.player(player));
+            bindings.putMember("world", VibeRuntimeWrappers.world(player.getWorld()));
         }
         return scheduler;
     }

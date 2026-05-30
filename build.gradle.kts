@@ -27,6 +27,8 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
 
+    testImplementation("com.google.code.gson:gson:2.11.0")
+
     // include openai
     implementation("com.openai:openai-java:4.35.0")
 
@@ -48,6 +50,9 @@ dependencies {
     // langchain4j - better tool calling
     implementation("dev.langchain4j:langchain4j-open-ai:1.15.0")
     implementation("dev.langchain4j:langchain4j:1.15.0")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 java {
@@ -83,6 +88,10 @@ tasks {
         // Your plugin's jar (or shadowJar if present) will be used automatically.
         minecraftVersion("26.1.2")
         jvmArgs("-Xms2G", "-Xmx2G")
+    }
+
+    test {
+        useJUnitPlatform()
     }
 
     processResources {
