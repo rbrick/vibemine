@@ -94,7 +94,7 @@ public final class ConversationActionBar {
 
         return new TokenMeasurement(
                 TokenEstimator.estimate(input.toString()),
-                TokenEstimator.estimate(output.toString())
+                Math.max(TokenEstimator.estimate(output.toString()), conversation.getEstimatedOutputTokens())
         );
     }
 

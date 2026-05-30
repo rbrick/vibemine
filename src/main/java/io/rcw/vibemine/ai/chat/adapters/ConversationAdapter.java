@@ -22,7 +22,9 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
         var messages = (List<Message>) context.deserialize(object.get("messages"), new TypeToken<ArrayList<Message>>() {
         }.getType());
 
-        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages);
+        int estimatedOutputTokens = object.has("estimatedOutputTokens") ? object.get("estimatedOutputTokens").getAsInt() : 0;
+
+        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages, estimatedOutputTokens);
     }
 
     @Override
@@ -31,6 +33,7 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
 
         object.addProperty("session", src.getSessionId().toString());
         object.addProperty("playerId", src.getPlayerId().toString());
+        object.addProperty("estimatedOutputTokens", src.getEstimatedOutputTokens());
         object.add("messages", context.serialize(src.getMessages()));
 
         return object;

@@ -1,6 +1,7 @@
 package io.rcw.vibemine.handlers;
 
 import io.rcw.vibemine.Vibemine;
+import io.rcw.vibemine.ai.TokenEstimator;
 import io.rcw.vibemine.ai.agent.Agent;
 import io.rcw.vibemine.ai.agent.ResponseType;
 import io.rcw.vibemine.ai.chat.Conversation;
@@ -57,6 +58,7 @@ public final class AgentHandler implements Listener {
     @EventHandler
     public void onAgentResponse(final AsyncAgentResponseEvent event) {
         var agentResponse = event.getAgentResponse();
+        recordAgentOutputTokens(event, agentResponse.rawMessage());
 
         if (agentResponse.kind() == ResponseType.CODE) {
             Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
@@ -117,6 +119,10 @@ public final class AgentHandler implements Listener {
         sendAgentMessage(event, Component.text(agentResponse.responseText()));
     }
     
+    private void recordAgentOutputTokens(AsyncAgentResponseEvent event, String rawMessage) {
+        event.getConversation().addEstimatedOutputTokens(TokenEstimator.estimate(rawMessage));
+    }
+
     private void sendGeneratedCodePreview(AsyncAgentResponseEvent event, String pluginJson) {
         event.getPlayer().sendMessage(Component.text("Generated VibePlugin JSON:", NamedTextColor.GOLD));
         event.getPlayer().sendMessage(Highlighting.json(pluginJson));

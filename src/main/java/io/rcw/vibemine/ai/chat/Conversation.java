@@ -24,11 +24,17 @@ public final class Conversation {
 
     // mutable fields
     private String summary;
+    private int estimatedOutputTokens;
 
     public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages) {
+        this(playerId, sessionId, messages, 0);
+    }
+
+    public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages, int estimatedOutputTokens) {
         this.playerId = playerId;
         this.sessionId = sessionId;
         this.messages.addAll(messages);
+        this.estimatedOutputTokens = Math.max(0, estimatedOutputTokens);
     }
 
     public Conversation(UUID playerId) {
@@ -107,5 +113,13 @@ public final class Conversation {
 
     public void setSummary(String summary) {
         this.summary = summary;
+    }
+
+    public int getEstimatedOutputTokens() {
+        return estimatedOutputTokens;
+    }
+
+    public void addEstimatedOutputTokens(int tokens) {
+        this.estimatedOutputTokens += Math.max(0, tokens);
     }
 }
