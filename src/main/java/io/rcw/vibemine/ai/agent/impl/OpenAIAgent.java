@@ -25,7 +25,6 @@ import static io.rcw.vibemine.ai.agent.SystemPrompt.SYSTEM_PROMPT;
 
 public final class OpenAIAgent extends Agent {
     private static final String OPEN_AI_SUMMARIZE_MODEL = "gpt-5.4-nano";
-    private static final int MAX_TOOL_STEPS = 16;
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     private final OpenAIClientAsync  openAIClient;
@@ -98,7 +97,7 @@ public final class OpenAIAgent extends Agent {
         var choice = completion.choices().getFirst();
         var message = choice.message();
 
-        if (message.toolCalls().isPresent() && step < MAX_TOOL_STEPS) {
+        if (message.toolCalls().isPresent()) {
             messages.add(ChatCompletionMessageParam.ofAssistant(message.toParam()));
 
             message.toolCalls().get().forEach(toolCall -> {
@@ -239,7 +238,7 @@ public final class OpenAIAgent extends Agent {
 
         String finishReason = String.valueOf(choice.finishReason());
         if (message.toolCalls().isPresent()) {
-            return errorResponse("The model was still making tool calls after " + step + " rounds, so I stopped it before it could finish. Try asking for a smaller first version, or ask me to continue/extend the plugin in steps.");
+            return errorResponse("The model returned tool calls after " + step + " rounds, but tool execution could not continue. Please try again or ask for a smaller first version.");
         }
         if (finishReason.toLowerCase(Locale.ROOT).contains("length")) {
             return errorResponse("The model hit its output limit before returning a final response. Try asking for a smaller first version, then add features incrementally.");

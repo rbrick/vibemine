@@ -2,13 +2,16 @@ package io.rcw.vibemine.ai.tools.io;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.tools.Tool;
 import io.rcw.vibemine.annotations.Named;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.concurrent.CompletableFuture;
 
 @Named("file_write")
 public class FileWriteTool implements Tool<FileWriteTool.FileWriteInput, FileWriteTool.FileWriteOutput> {
@@ -48,9 +51,38 @@ public class FileWriteTool implements Tool<FileWriteTool.FileWriteInput, FileWri
             }
             Files.createDirectories(path.getParent());
             Files.writeString(path, fileWriteInput.content == null ? "" : fileWriteInput.content, StandardCharsets.UTF_8);
+            if (normalizedFile.equals("plugin.json")) {
+                String loadError = loadPlugin(fileWriteInput.plugin);
+                if (loadError != null) return new FileWriteOutput(true, "Saved, but auto-load failed: " + loadError);
+            }
             return new FileWriteOutput(true, "");
         } catch (Exception exception) {
             return new FileWriteOutput(false, exception.getMessage());
+        }
+    }
+
+    private String loadPlugin(String pluginName) {
+        if (!(plugin instanceof Vibemine vibemine)) return null;
+        if (vibemine.getVibedPluginManager() == null) return null;
+        try {
+            if (Bukkit.isPrimaryThread()) {
+                vibemine.getVibedPluginManager().enablePlugin(pluginName);
+            } else {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                Bukkit.getScheduler().runTask(vibemine, () -> {
+                    try {
+                        vibemine.getVibedPluginManager().enablePlugin(pluginName);
+                        future.complete(null);
+                    } catch (Exception exception) {
+                        future.completeExceptionally(exception);
+                    }
+                });
+                future.get();
+            }
+            return null;
+        } catch (Exception exception) {
+            Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+            return cause.getMessage();
         }
     }
 
