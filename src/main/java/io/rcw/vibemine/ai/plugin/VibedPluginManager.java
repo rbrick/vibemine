@@ -13,6 +13,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
+import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.help.GenericCommandHelpTopic;
 
 import java.io.IOException;
@@ -111,6 +112,27 @@ public final class VibedPluginManager {
         VibedPlugin vibedPlugin = plugins.get(normalizeName(pluginName));
         if (vibedPlugin == null) throw new IllegalStateException("Plugin '" + normalizeName(pluginName) + "' is not enabled");
         return vibedPlugin.callExport(exportName, args);
+    }
+
+    public ChunkGenerator exportedChunkGenerator(String id) {
+        if (id == null || id.isBlank()) return null;
+        String normalizedId = id.trim();
+        String pluginName;
+        String exportName;
+        int separator = Math.max(normalizedId.indexOf(':'), normalizedId.indexOf('/'));
+        if (separator >= 0) {
+            pluginName = normalizeName(normalizedId.substring(0, separator));
+            exportName = normalizedId.substring(separator + 1);
+            VibedPlugin vibedPlugin = plugins.get(pluginName);
+            if (vibedPlugin == null) throw new IllegalArgumentException("No enabled vibed plugin named '" + pluginName + "'");
+            return vibedPlugin.exportedChunkGenerator(exportName);
+        }
+        List<VibedPlugin> matches = plugins.values().stream()
+                .filter(vibedPlugin -> vibedPlugin.exportNames().contains(normalizedId))
+                .toList();
+        if (matches.isEmpty()) throw new IllegalArgumentException("No vibed chunk generator export named '" + normalizedId + "'");
+        if (matches.size() > 1) throw new IllegalArgumentException("Ambiguous vibed chunk generator export '" + normalizedId + "'; use plugin:export");
+        return matches.getFirst().exportedChunkGenerator(normalizedId);
     }
 
     public void emitPluginEvent(String sourcePlugin, String targetPlugin, String eventName, Object payload) {

@@ -1,6 +1,5 @@
 package io.rcw.vibemine.ai.tools.raytrace;
 
-import com.google.common.reflect.TypeToken;
 import io.rcw.vibemine.ai.tools.Tool;
 import io.rcw.vibemine.annotations.Named;
 import org.bukkit.Location;
@@ -35,7 +34,7 @@ public final class RayTraceTool implements Tool<Void, List<RayTraceTool.RayTrace
 
     @Override
     public Class<List<RayTraceResponse>> outputClass() {
-        return (Class<List<RayTraceResponse>>) new TypeToken< List<RayTraceResponse>>(){}.getRawType();
+        return (Class<List<RayTraceResponse>>) (Class<?>) List.class;
     }
 
     @Override
@@ -51,8 +50,6 @@ public final class RayTraceTool implements Tool<Void, List<RayTraceTool.RayTrace
         if (blocksResult != null) {
             result.add(RayTraceResponse.ofBlock(blocksResult.getHitBlock()));
         }
-
-        System.out.println(entitiesResult);
 
         return result;
     }

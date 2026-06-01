@@ -30,9 +30,11 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.nio.file.Path;
+import java.util.logging.Level;
 import java.util.UUID;
 
 public final class Vibemine extends JavaPlugin {
@@ -52,54 +54,47 @@ public final class Vibemine extends JavaPlugin {
     private ConversationStore conversationStore;
     private Path databasePath;
 
-
-
     Vibemine() {
         instance = this;
     }
 
-
     @Override
     public void onEnable() {
-        // Plugin startup logic
-
-        // save the default config
-        this.saveDefaultConfig();
-
-
-        // vibe command -> opens book -> type prompt -> feed to llm/coding agent to create code -> code compiles to jvm (or we use a scripting language like groovy/javascript for this)
-        var config = this.getConfig();
-
-        // create our agent
+        saveDefaultConfig();
+        var config = getConfig();
         var agent = new OpenAIAgent(
                 config.getString("ai.model"),
                 config.getString("ai.api_key")
         );
 
-        this.registerTools(agent);
+        registerTools(agent);
 
         try {
-            this.databasePath = getDataFolder().toPath().resolve(config.getString("database.file", "vibe.db"));
-            this.conversationStore = new ConversationStore(databasePath);
+            databasePath = getDataFolder().toPath().resolve(config.getString("database.file", "vibe.db"));
+            conversationStore = new ConversationStore(databasePath);
         } catch (Exception exception) {
             throw new IllegalStateException("Could not open conversation database", exception);
         }
 
-
-
         var conversationActionBar = new ConversationActionBar();
-
-        // register our chat handler
         Bukkit.getPluginManager().registerEvents(new ChatHandler(conversationStore), this);
 
+        vibedPluginManager = new VibedPluginManager(this);
+        vibedPluginManager.enable();
 
-        this.vibedPluginManager = new VibedPluginManager(this);
-        this.vibedPluginManager.enable();
-
-        // register our agent handler
         Bukkit.getPluginManager().registerEvents(new AgentHandler(agent, vibedPluginManager, conversationStore, conversationActionBar), this);
+        registerCommand("vibe", new VibeCommand(vibedPluginManager, conversationStore, conversationActionBar));
+    }
 
-        this.registerCommand("vibe", new VibeCommand(vibedPluginManager, conversationStore, conversationActionBar));
+    @Override
+    public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
+        if (vibedPluginManager == null || id == null || id.isBlank()) return null;
+        try {
+            return vibedPluginManager.exportedChunkGenerator(id);
+        } catch (Exception exception) {
+            getLogger().log(Level.WARNING, "Could not load vibed chunk generator '" + id + "' for world '" + worldName + "'", exception);
+            return null;
+        }
     }
 
     @Override
@@ -150,4 +145,4 @@ public final class Vibemine extends JavaPlugin {
         return Vibemine.instance;
     }
 
- }
+}

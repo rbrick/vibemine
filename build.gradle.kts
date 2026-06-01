@@ -40,17 +40,14 @@ dependencies {
 
     implementation("org.xerial:sqlite-jdbc:3.53.1.0")
 
+    implementation("org.ow2.asm:asm:9.9")
+
 
 
     // for syntax highlighting
     implementation("io.github.bonede:tree-sitter:0.26.6")
     implementation("io.github.bonede:tree-sitter-json:0.24.8")
     implementation("io.github.bonede:tree-sitter-javascript:0.23.1")
-
-    // langchain4j - better tool calling
-    implementation("dev.langchain4j:langchain4j-open-ai:1.15.0")
-    implementation("dev.langchain4j:langchain4j:1.15.0")
-
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

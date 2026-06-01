@@ -7,6 +7,7 @@ import io.rcw.vibemine.ai.plugin.schema.VibedPluginSchema;
 import org.bukkit.Bukkit;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import org.bukkit.event.Event;
+import org.bukkit.generator.ChunkGenerator;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.Value;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import io.rcw.vibemine.ai.plugin.runtime.worldgen.VibeChunkGenerators;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -75,6 +77,23 @@ public final class VibedPlugin {
     public List<String> imports() { return safeList(schema.imports()).stream().map(VibedPluginManager::normalizeName).toList(); }
     public java.util.Set<String> exportNames() { return schema.exports() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.exports().keySet()); }
     public java.util.Set<String> pluginEventNames() { return schema.pluginEvents() == null ? java.util.Set.of() : java.util.Set.copyOf(schema.pluginEvents().keySet()); }
+
+    public ChunkGenerator exportedChunkGenerator(String exportName) {
+        if (schema.exports() == null || !schema.exports().containsKey(exportName)) {
+            throw new IllegalArgumentException("Plugin '" + name() + "' does not export '" + exportName + "'");
+        }
+        Value function = compiledExports.get(exportName);
+        if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
+        Value options = function.execute(state);
+        ChunkGenerator generator;
+        try {
+            generator = VibeChunkGenerators.fromOptions(options);
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Plugin '" + name() + "' export '" + exportName + "' returned generator options that failed to compile: " + exception.getMessage(), exception);
+        }
+        if (generator == null) throw new IllegalArgumentException("Export '" + exportName + "' did not return a valid generator options object");
+        return generator;
+    }
 
     public Object callExport(String exportName, Object[] args) {
         if (schema.exports() == null || !schema.exports().containsKey(exportName)) {

@@ -2,7 +2,7 @@ name: vibemine
 version: '${version}'
 main: io.rcw.vibemine.Vibemine
 api-version: '1.21'
-load: POSTWORLD
+load: STARTUP # load at startup for world generators
 permissions:
   vibemine.vibe.start:
     default: true

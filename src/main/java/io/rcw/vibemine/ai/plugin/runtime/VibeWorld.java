@@ -40,6 +40,18 @@ public final class VibeWorld {
      */
     public void setStorm(boolean storm) { this.world.setStorm(storm); }
 
+    /** JavaScript binding for {@code getSeed}. */
+    public long getSeed() { return this.world.getSeed(); }
+
+    /** JavaScript binding for {@code getEnvironment}. */
+    public String getEnvironment() { return this.world.getEnvironment().name().toLowerCase(); }
+
+    /** JavaScript binding for {@code getSpawnLocation}. */
+    public VibeLocation getSpawnLocation() { return new VibeLocation(this.world.getSpawnLocation()); }
+
+    /** JavaScript binding for {@code setSpawnLocation}. */
+    public void setSpawnLocation(int x, int y, int z) { this.world.setSpawnLocation(x, y, z); }
+
     /**
      * JavaScript binding for {@code location}.
      */

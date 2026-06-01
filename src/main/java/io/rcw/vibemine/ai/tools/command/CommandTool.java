@@ -5,7 +5,6 @@ import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.tools.Tool;
 import io.rcw.vibemine.annotations.Named;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -34,7 +33,6 @@ public final class CommandTool implements Tool<CommandTool.CommandInput, Command
     public CommandOutput execute(Player player, CommandInput commandInput) {
         Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
             for (String command : commandInput.command()) {
-                System.out.println("Executing command: " + command);
                 Bukkit.dispatchCommand(player, command);
             }
         });

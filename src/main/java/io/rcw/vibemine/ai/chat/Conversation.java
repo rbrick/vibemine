@@ -13,27 +13,16 @@ public final class Conversation {
 
     public record Message(Sender sender, String message, long timestamp) {}
 
-    // constants
     public static final int CHAT_HISTORY_LIMIT = 6;
-
     public static final Map<UUID, Conversation> conversing = new ConcurrentHashMap<>();
 
-    // immutables fields
     private final List<Message> messages = new LinkedList<>();
-    private final UUID playerId, sessionId;
+    private final UUID playerId;
+    private final UUID sessionId;
 
-    // mutable fields
     private String summary;
     private int estimatedOutputTokens;
     private int estimatedToolTokens;
-
-    public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages) {
-        this(playerId, sessionId, messages, 0, 0);
-    }
-
-    public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages, int estimatedOutputTokens) {
-        this(playerId, sessionId, messages, estimatedOutputTokens, 0);
-    }
 
     public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages, int estimatedOutputTokens, int estimatedToolTokens) {
         this.playerId = playerId;
@@ -44,9 +33,8 @@ public final class Conversation {
     }
 
     public Conversation(UUID playerId) {
-        // create a new session id
-        this.sessionId = UUID.randomUUID();
         this.playerId = playerId;
+        this.sessionId = UUID.randomUUID();
     }
 
     public static Conversation beginConversation(final Player player) {
@@ -103,13 +91,12 @@ public final class Conversation {
     }
 
     public String formatChatHistory(int messageCount) {
-        final var builder = new StringBuilder();
-
-        this.messages.stream().sorted(Comparator.comparingLong(Message::timestamp)).limit(
-                Math.min(messageCount, this.messages.size())
-        ).map((msg) -> String.format("%s: %s%n", msg.sender().name(), msg.message()))
+        var builder = new StringBuilder();
+        messages.stream()
+                .sorted(Comparator.comparingLong(Message::timestamp))
+                .limit(Math.min(messageCount, messages.size()))
+                .map(message -> "%s: %s%n".formatted(message.sender().name(), message.message()))
                 .forEachOrdered(builder::append);
-
         return builder.toString();
     }
 
