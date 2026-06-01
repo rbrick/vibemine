@@ -206,18 +206,26 @@ public final class VibePlayer extends VibeSender {
         return this.player.isFlying();
     }
 
+    public void setFlySpeed(double speed) {
+        this.player.setFlySpeed((float) speed);
+    }
+
+    public double getFlySpeed() {
+        return this.player.getFlySpeed();
+    }
+
     /**
      * JavaScript binding for {@code setWalkSpeed}.
      */
-    public void setWalkSpeed(float speed) {
-        this.player.setWalkSpeed(speed);
+    public void setWalkSpeed(double speed) {
+        this.player.setWalkSpeed((float) speed);
     }
 
     /**
      * JavaScript binding for {@code getWalkSpeed}.
      */
-    public float getWalkSpeed() {
-        return this.player.getWalkSpeed();
+    public double getWalkSpeed() {
+        return (double) player.getWalkSpeed();
     }
 
     /**
