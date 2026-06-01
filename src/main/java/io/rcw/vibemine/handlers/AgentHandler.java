@@ -17,6 +17,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -63,7 +64,7 @@ public final class AgentHandler implements Listener {
         } else if (response.kind() == ResponseType.ERROR) {
             sendAgentMessage(event, Component.text(response.responseText(), NamedTextColor.RED));
         } else {
-            sendAgentMessage(event, Component.text(response.responseText()));
+            sendAgentMessage(event, MiniMessage.miniMessage().deserialize(response.responseText()));
         }
     }
 

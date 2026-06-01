@@ -7,6 +7,9 @@ final class VibeText {
     private VibeText() {}
 
     static Component component(String message) {
+
+
+
         return LegacyComponentSerializer.legacy('&').deserialize(message);
     }
 }

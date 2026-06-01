@@ -51,7 +51,10 @@ public final class VibedPlugin {
         VibeRuntimeBindings.install(context.getBindings("js"), scheduler, name(), plugin.getVibedPluginManager());
         String globals = schema.globals() == null || schema.globals().isBlank() ? "(function() { return {}; })" : schema.globals();
         validateJavaScript(globals);
-        state = context.eval("js", globals).execute();
+        Value globalsValue = context.eval("js", globals);
+        state = globalsValue.canExecute()
+                ? globalsValue.execute()
+                : globalsValue;
         compileScripts();
     }
 
@@ -84,6 +87,9 @@ public final class VibedPlugin {
         }
         Value function = compiledExports.get(exportName);
         if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
+        if (!function.canExecute()) {
+            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string like `(function(state){ return state.generator(state); })`, but evaluated to " + function.metaObject());
+        }
         Value options = function.execute(state);
         ChunkGenerator generator;
         try {
@@ -103,6 +109,9 @@ public final class VibedPlugin {
         withState[args.length] = state;
         Value function = compiledExports.get(exportName);
         if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
+        if (!function.canExecute()) {
+            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string, but evaluated to " + function.metaObject());
+        }
         Value result = function.execute(withState);
         return result == null || result.isNull() ? null : result.as(Object.class);
     }

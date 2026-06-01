@@ -29,16 +29,16 @@ public final class VibeChunkGenerators {
         String type = stringMember(generator, "type", "normal").toLowerCase();
         return switch (type) {
             case "void", "empty" -> new VoidGenerator(parseStructures(generator));
-            case "flat", "layers", "layered" -> new LayeredGenerator(parseLayers(generator), parseStructures(generator));
-            case "rules", "dsl" -> new RuleGenerator(parseLayers(generator), parseStructures(generator), parseRules(generator), parseVariables(generator));
-            case "compiled_column", "compiledcolumn", "asm_column", "asmcolumn" -> new CompiledColumnGenerator(parseLayers(generator), parseStructures(generator), parseCompiledColumns(generator), parseCompiledSpans(generator));
-            case "column", "columnfunction", "column_callback" -> new ColumnCallbackGenerator(parseLayers(generator), parseStructures(generator), valueMember(generator, "column", valueMember(generator, "callback", null)));
-            case "function", "callback", "javascript", "js" -> new CallbackGenerator(parseLayers(generator), parseStructures(generator), valueMember(generator, "block", valueMember(generator, "callback", null)), intMember(generator, "minY", Integer.MIN_VALUE), intMember(generator, "maxY", Integer.MAX_VALUE));
+            case "flat", "layers", "layered" -> new LayeredGenerator(parseLayers(generator, true), parseStructures(generator));
+            case "rules", "dsl" -> new RuleGenerator(parseLayers(generator, true), parseStructures(generator), parseRules(generator), parseVariables(generator));
+            case "compiled_column", "compiledcolumn", "asm_column", "asmcolumn" -> new CompiledColumnGenerator(parseLayers(generator, false), parseStructures(generator), parseCompiledColumns(generator), parseCompiledSpans(generator));
+            case "column", "columnfunction", "column_callback" -> new ColumnCallbackGenerator(parseLayers(generator, false), parseStructures(generator), valueMember(generator, "column", valueMember(generator, "callback", null)));
+            case "function", "callback", "javascript", "js" -> new CallbackGenerator(parseLayers(generator, false), parseStructures(generator), valueMember(generator, "block", valueMember(generator, "callback", null)), intMember(generator, "minY", Integer.MIN_VALUE), intMember(generator, "maxY", Integer.MAX_VALUE));
             default -> throw new IllegalArgumentException("Unsupported generator type '" + type + "'. Expected one of: void, layers, rules, compiled_column, column, function");
         };
     }
 
-    private static List<Layer> parseLayers(Value generator) {
+    private static List<Layer> parseLayers(Value generator, boolean defaultIfEmpty) {
         List<Layer> layers = new ArrayList<>();
         if (generator.hasMember("layers") && generator.getMember("layers").hasArrayElements()) {
             Value array = generator.getMember("layers");
@@ -58,7 +58,7 @@ public final class VibeChunkGenerators {
                 }
             }
         }
-        if (layers.isEmpty()) {
+        if (layers.isEmpty() && defaultIfEmpty) {
             layers.add(new Layer(-64, -61, blockData("minecraft:bedrock")));
             layers.add(new Layer(-60, 58, blockData("minecraft:stone")));
             layers.add(new Layer(59, 61, blockData("minecraft:dirt")));
@@ -112,53 +112,96 @@ public final class VibeChunkGenerators {
 
     private static List<Structure> parseStructures(Value generator) {
         List<Structure> structures = new ArrayList<>();
-        if (generator == null || generator.isNull() || !generator.hasMember("structures") || !generator.getMember("structures").hasArrayElements()) return List.of();
-        Value array = generator.getMember("structures");
+        parseStructures(generator, "structures", structures);
+        parseStructures(generator, "largeStructures", structures);
+        parseStructures(generator, "large_structures", structures);
+        return List.copyOf(structures);
+    }
+
+    private static void parseStructures(Value generator, String key, List<Structure> structures) {
+        if (generator == null || generator.isNull() || !generator.hasMember(key) || !generator.getMember(key).hasArrayElements()) return;
+        Value array = generator.getMember(key);
         for (long i = 0; i < array.getArraySize(); i++) {
             Value structure = array.getArrayElement(i);
             if (!structure.hasMember("blocks") || !structure.getMember("blocks").hasArrayElements()) continue;
             List<StructureBlock> blocks = new ArrayList<>();
             Value blockArray = structure.getMember("blocks");
+            int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
             for (long b = 0; b < blockArray.getArraySize(); b++) {
                 Value block = blockArray.getArrayElement(b);
                 String data = stringMember(block, "blockData", null);
                 if (data == null) data = stringMember(block, "material", "minecraft:air");
-                blocks.add(new StructureBlock(intMember(block, "x", 0), intMember(block, "y", 0), intMember(block, "z", 0), blockData(data)));
+                int x = intMember(block, "x", 0);
+                int y = intMember(block, "y", 0);
+                int z = intMember(block, "z", 0);
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+                blocks.add(new StructureBlock(x, y, z, blockData(data)));
             }
+            if (blocks.isEmpty()) continue;
+            int configuredRadius = intMember(structure, "maxRadius", intMember(structure, "radius", -1));
+            int blockRadius = Math.max(Math.max(Math.abs(minX), Math.abs(maxX)), Math.max(Math.abs(minZ), Math.abs(maxZ))) + 16;
+            int searchRadius = Math.max(16, configuredRadius >= 0 ? configuredRadius : blockRadius);
             structures.add(new Structure(
                     intMember(structure, "spacing", 8),
                     doubleMember(structure, "chance", 1.0),
                     intMember(structure, "y", 64),
                     stringMember(structure, "placement", "fixed"),
                     intMember(structure, "yOffset", 0),
+                    searchRadius,
+                    minX,
+                    maxX,
+                    minZ,
+                    maxZ,
                     blocks
             ));
         }
-        return List.copyOf(structures);
     }
 
     private static void generateStructures(WorldInfo worldInfo, int chunkX, int chunkZ, ChunkData chunkData, List<Structure> structures) {
         if (structures.isEmpty()) return;
+        int chunkWorldX = chunkX * 16;
+        int chunkWorldZ = chunkZ * 16;
         int minY = chunkData.getMinHeight();
         int maxY = chunkData.getMaxHeight() - 1;
         for (Structure structure : structures) {
             int spacing = Math.max(1, structure.spacing());
-            if (Math.floorMod(chunkX, spacing) != 0 || Math.floorMod(chunkZ, spacing) != 0) continue;
-            Random random = new Random(worldInfo.getSeed() ^ (((long) chunkX) << 32) ^ (chunkZ * 341873128712L));
-            if (random.nextDouble() > structure.chance()) continue;
-            int originX = random.nextInt(16);
-            int originZ = random.nextInt(16);
-            int surface = structure.placement().equalsIgnoreCase("surface") ? surfaceY(chunkData, originX, originZ) : Integer.MIN_VALUE;
-            if (structure.placement().equalsIgnoreCase("surface") && surface == Integer.MIN_VALUE) continue;
-            int originY = structure.placement().equalsIgnoreCase("surface")
-                    ? surface + structure.yOffset()
-                    : structure.y();
-            for (StructureBlock block : structure.blocks()) {
-                int x = originX + block.x();
-                int y = originY + block.y();
-                int z = originZ + block.z();
-                if (x < 0 || x > 15 || z < 0 || z > 15 || y < minY || y > maxY) continue;
-                chunkData.setBlock(x, y, z, block.blockData());
+            int radiusChunks = Math.max(1, (int) Math.ceil(structure.searchRadius() / 16.0) + 1);
+            int minCellX = Math.floorDiv(chunkX - radiusChunks, spacing);
+            int maxCellX = Math.floorDiv(chunkX + radiusChunks, spacing);
+            int minCellZ = Math.floorDiv(chunkZ - radiusChunks, spacing);
+            int maxCellZ = Math.floorDiv(chunkZ + radiusChunks, spacing);
+            for (int cellX = minCellX; cellX <= maxCellX; cellX++) for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+                int anchorChunkX = cellX * spacing;
+                int anchorChunkZ = cellZ * spacing;
+                Random random = new Random(worldInfo.getSeed() ^ (((long) anchorChunkX) << 32) ^ (anchorChunkZ * 341873128712L) ^ (structure.blocks().size() * 1000003L));
+                if (random.nextDouble() > structure.chance()) continue;
+                int originWorldX = anchorChunkX * 16 + random.nextInt(16);
+                int originWorldZ = anchorChunkZ * 16 + random.nextInt(16);
+                if (originWorldX + structure.maxX() < chunkWorldX || originWorldX + structure.minX() > chunkWorldX + 15) continue;
+                if (originWorldZ + structure.maxZ() < chunkWorldZ || originWorldZ + structure.minZ() > chunkWorldZ + 15) continue;
+
+                int originY = structure.y();
+                if (structure.placement().equalsIgnoreCase("surface")) {
+                    int localOriginX = originWorldX - chunkWorldX;
+                    int localOriginZ = originWorldZ - chunkWorldZ;
+                    if (localOriginX < 0 || localOriginX > 15 || localOriginZ < 0 || localOriginZ > 15) continue;
+                    int surface = surfaceY(chunkData, localOriginX, localOriginZ);
+                    if (surface == Integer.MIN_VALUE) continue;
+                    originY = surface + structure.yOffset();
+                }
+
+                for (StructureBlock block : structure.blocks()) {
+                    int worldX = originWorldX + block.x();
+                    int y = originY + block.y();
+                    int worldZ = originWorldZ + block.z();
+                    int x = worldX - chunkWorldX;
+                    int z = worldZ - chunkWorldZ;
+                    if (x < 0 || x > 15 || z < 0 || z > 15 || y < minY || y > maxY) continue;
+                    chunkData.setBlock(x, y, z, block.blockData());
+                }
             }
         }
     }
@@ -182,7 +225,17 @@ public final class VibeChunkGenerators {
 
     private static int intMember(Value value, String key, int fallback) {
         if (value == null || value.isNull() || !value.hasMember(key) || value.getMember(key).isNull()) return fallback;
-        return value.getMember(key).asInt();
+        Value member = value.getMember(key);
+        if (member.fitsInInt()) return member.asInt();
+        if (member.isNumber()) return (int) Math.floor(member.asDouble());
+        if (member.isString()) {
+            try {
+                return (int) Math.floor(Double.parseDouble(member.asString().trim()));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
     }
 
     private static boolean booleanMember(Value value, String key, boolean fallback) {
@@ -245,7 +298,7 @@ public final class VibeChunkGenerators {
     private record Rule(String when, String blockData) {}
     private record CompiledColumn(String name, CompiledExpression expr) {}
     private record CompiledSpan(CompiledExpression from, CompiledExpression to, BlockData blockData) {}
-    private record Structure(int spacing, double chance, int y, String placement, int yOffset, List<StructureBlock> blocks) {}
+    private record Structure(int spacing, double chance, int y, String placement, int yOffset, int searchRadius, int minX, int maxX, int minZ, int maxZ, List<StructureBlock> blocks) {}
     private record StructureBlock(int x, int y, int z, BlockData blockData) {}
 
     private static final class VoidGenerator extends ChunkGenerator {
