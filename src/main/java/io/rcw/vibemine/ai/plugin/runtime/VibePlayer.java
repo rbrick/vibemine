@@ -5,12 +5,14 @@ import io.rcw.vibemine.ai.plugin.runtime.raytrace.VibeRayTraceResult;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.graalvm.polyglot.Value;
 
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * JavaScript-safe wrapper/binding for Vibe Player functionality.
@@ -235,7 +237,7 @@ public final class VibePlayer extends VibeSender {
     /**
      * JavaScript binding for {@code setHealth}.
      */
-    public void setHealth(double health) { this.player.setHealth(Math.max(0.0, Math.min(health, this.player.getMaxHealth()))); }
+    public void setHealth(double health) { this.player.setHealth(Math.clamp(health, 0.0, Objects.requireNonNull(this.player.getAttribute(Attribute.MAX_HEALTH)).getBaseValue())); }
     /**
      * JavaScript binding for {@code getFoodLevel}.
      */
@@ -243,7 +245,7 @@ public final class VibePlayer extends VibeSender {
     /**
      * JavaScript binding for {@code setFoodLevel}.
      */
-    public void setFoodLevel(int foodLevel) { this.player.setFoodLevel(Math.max(0, Math.min(foodLevel, 20))); }
+    public void setFoodLevel(int foodLevel) { this.player.setFoodLevel(Math.clamp(foodLevel, 0, 20)); }
     /**
      * JavaScript binding for {@code getGameMode}.
      */

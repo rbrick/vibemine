@@ -43,6 +43,40 @@ public final class VibeWorld {
     /** JavaScript binding for {@code getSeed}. */
     public long getSeed() { return this.world.getSeed(); }
 
+    /** JavaScript binding for {@code isDaylightCycleEnabled}. */
+    public boolean isDaylightCycleEnabled() {
+        return this.world.getGameRuleValue(GameRules.ADVANCE_TIME);
+    }
+
+    /** JavaScript binding for {@code setDaylightCycleEnabled}. Disable this to freeze natural time changes. */
+    public void setDaylightCycleEnabled(boolean enabled) { this.world.setGameRule(GameRules.ADVANCE_TIME, enabled); }
+
+    /** JavaScript binding for {@code freezeTime}. Sets the current time and disables the daylight cycle. */
+    public void freezeTime(long time) {
+        this.world.setTime(time);
+        this.world.setGameRule(GameRules.ADVANCE_TIME, false);
+    }
+
+    /** JavaScript binding for {@code unfreezeTime}. Re-enables the daylight cycle. */
+    public void unfreezeTime() { this.world.setGameRule(GameRules.ADVANCE_TIME, true); }
+
+    /** JavaScript binding for {@code isWeatherCycleEnabled}. */
+    public boolean isWeatherCycleEnabled() {
+        return  this.world.getGameRuleValue(GameRules.ADVANCE_WEATHER);
+    }
+
+    /** JavaScript binding for {@code setWeatherCycleEnabled}. */
+    public void setWeatherCycleEnabled(boolean enabled) { this.world.setGameRule(GameRules.ADVANCE_WEATHER, enabled); }
+
+    /** JavaScript binding for {@code freezeWeather}. */
+    public void freezeWeather(boolean storm) {
+        this.world.setStorm(storm);
+        this.world.setGameRule(GameRules.ADVANCE_WEATHER, false);
+    }
+
+    /** JavaScript binding for {@code unfreezeWeather}. */
+    public void unfreezeWeather() { this.world.setGameRule(GameRules.ADVANCE_WEATHER, true); }
+
     /** JavaScript binding for {@code getEnvironment}. */
     public String getEnvironment() { return this.world.getEnvironment().name().toLowerCase(); }
 

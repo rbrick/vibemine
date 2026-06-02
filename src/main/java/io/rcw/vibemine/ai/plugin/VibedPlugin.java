@@ -88,7 +88,7 @@ public final class VibedPlugin {
         Value function = compiledExports.get(exportName);
         if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
         if (!function.canExecute()) {
-            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string like `(function(state){ return state.generator(state); })`, but evaluated to " + function.metaObject());
+            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string like `(function(state){ return state.generator(state); })`, but evaluated to " + function.getMetaObject().asString());
         }
         Value options = function.execute(state);
         ChunkGenerator generator;
@@ -110,7 +110,7 @@ public final class VibedPlugin {
         Value function = compiledExports.get(exportName);
         if (function == null) throw new IllegalStateException("Export '" + exportName + "' is not compiled");
         if (!function.canExecute()) {
-            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string, but evaluated to " + function.metaObject());
+            throw new IllegalArgumentException("Export '" + exportName + "' must be a function source string, but evaluated to " + function.getMetaObject().asString());
         }
         Value result = function.execute(withState);
         return result == null || result.isNull() ? null : result.as(Object.class);
