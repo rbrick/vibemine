@@ -146,6 +146,42 @@ public final class VibeWorld {
         this.world.strikeLightning(location.unwrap());
     }
 
+    /** JavaScript binding for {@code spawnParticle}. */
+    public void spawnParticle(String particle, VibeLocation location, int count, double offsetX, double offsetY, double offsetZ, double extra) {
+        if (location == null) throw new IllegalArgumentException("Location cannot be null");
+        Particle parsed = VibeParticles.parse(particle);
+        VibeParticles.requireNoData(parsed);
+        this.world.spawnParticle(parsed, location.unwrap(), Math.max(0, count), offsetX, offsetY, offsetZ, extra);
+    }
+
+    /** JavaScript binding for {@code spawnParticle} with no spread/speed. */
+    public void spawnParticle(String particle, VibeLocation location, int count) {
+        spawnParticle(particle, location, count, 0, 0, 0, 0);
+    }
+
+    /** JavaScript binding for {@code spawnParticleAt}. */
+    public void spawnParticleAt(String particle, double x, double y, double z, int count, double offsetX, double offsetY, double offsetZ, double extra) {
+        spawnParticle(particle, location(x, y, z), count, offsetX, offsetY, offsetZ, extra);
+    }
+
+    /** JavaScript binding for {@code spawnParticleAt} with no spread/speed. */
+    public void spawnParticleAt(String particle, double x, double y, double z, int count) {
+        spawnParticleAt(particle, x, y, z, count, 0, 0, 0, 0);
+    }
+
+    /** JavaScript binding for colored dust particles. */
+    public void spawnDustParticle(VibeLocation location, int count, int red, int green, int blue, double size, double offsetX, double offsetY, double offsetZ) {
+        if (location == null) throw new IllegalArgumentException("Location cannot be null");
+        var color = Color.fromRGB(Math.clamp(red, 0, 255), Math.clamp(green, 0, 255), Math.clamp(blue, 0, 255));
+        var options = new Particle.DustOptions(color, (float) Math.clamp(size, 0.01, 64.0));
+        this.world.spawnParticle(Particle.DUST, location.unwrap(), Math.max(0, count), offsetX, offsetY, offsetZ, 0, options);
+    }
+
+    /** JavaScript binding for colored dust particles with no spread. */
+    public void spawnDustParticle(VibeLocation location, int count, int red, int green, int blue, double size) {
+        spawnDustParticle(location, count, red, green, blue, size, 0, 0, 0);
+    }
+
     /**
      * JavaScript binding for {@code playSound}.
      */

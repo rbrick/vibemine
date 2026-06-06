@@ -32,6 +32,7 @@ public final class VibeRuntimeBindings {
     public static void install(Value bindings, VibeScheduler scheduler) {
         bindings.putMember("server", new VibeServer());
         bindings.putMember("inventories", new VibeInventories());
+        bindings.putMember("particles", new VibeParticles());
         bindings.putMember("permissions", new VibePermissions());
         bindings.putMember("scheduler", scheduler);
         bindings.putMember("dsl", new VibeDsl());

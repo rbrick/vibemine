@@ -5,6 +5,8 @@ import io.rcw.vibemine.ai.plugin.runtime.raytrace.VibeRayTraceResult;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Color;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -354,6 +356,42 @@ public final class VibePlayer extends VibeSender {
      * JavaScript binding for {@code give}.
      */
     public void give(VibeItem item) { this.player.getInventory().addItem(item.unwrap()); }
+
+    /** JavaScript binding for {@code spawnParticle} visible to this player at their location. */
+    public void spawnParticle(String particle, int count, double offsetX, double offsetY, double offsetZ, double extra) {
+        spawnParticleAt(getLocation(), particle, count, offsetX, offsetY, offsetZ, extra);
+    }
+
+    /** JavaScript binding for {@code spawnParticle} with no spread/speed. */
+    public void spawnParticle(String particle, int count) {
+        spawnParticle(particle, count, 0, 0, 0, 0);
+    }
+
+    /** JavaScript binding for {@code spawnParticleAt} visible only to this player. */
+    public void spawnParticleAt(VibeLocation location, String particle, int count, double offsetX, double offsetY, double offsetZ, double extra) {
+        if (location == null) throw new IllegalArgumentException("Location cannot be null");
+        Particle parsed = VibeParticles.parse(particle);
+        VibeParticles.requireNoData(parsed);
+        this.player.spawnParticle(parsed, location.unwrap(), Math.max(0, count), offsetX, offsetY, offsetZ, extra);
+    }
+
+    /** JavaScript binding for {@code spawnParticleAt} with no spread/speed. */
+    public void spawnParticleAt(VibeLocation location, String particle, int count) {
+        spawnParticleAt(location, particle, count, 0, 0, 0, 0);
+    }
+
+    /** JavaScript binding for colored dust particles visible only to this player. */
+    public void spawnDustParticle(VibeLocation location, int count, int red, int green, int blue, double size, double offsetX, double offsetY, double offsetZ) {
+        if (location == null) throw new IllegalArgumentException("Location cannot be null");
+        var color = Color.fromRGB(Math.clamp(red, 0, 255), Math.clamp(green, 0, 255), Math.clamp(blue, 0, 255));
+        var options = new Particle.DustOptions(color, (float) Math.clamp(size, 0.01, 64.0));
+        this.player.spawnParticle(Particle.DUST, location.unwrap(), Math.max(0, count), offsetX, offsetY, offsetZ, 0, options);
+    }
+
+    /** JavaScript binding for colored dust particles visible only to this player with no spread. */
+    public void spawnDustParticle(VibeLocation location, int count, int red, int green, int blue, double size) {
+        spawnDustParticle(location, count, red, green, blue, size, 0, 0, 0);
+    }
 
     /**
      * JavaScript binding for {@code playSound} at the player's current location.
