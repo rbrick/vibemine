@@ -5,7 +5,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /** Scheduler entry points that work on both Paper and Folia. */
 public final class FoliaScheduler {
@@ -37,6 +39,22 @@ public final class FoliaScheduler {
 
     public static void entity(Entity entity, Runnable task) {
         entity.getScheduler().run(Vibemine.getInstance(), ignored -> task.run(), null);
+    }
+
+    /** Runs work on the entity's owning region and exposes completion to asynchronous callers. */
+    public static <T> CompletableFuture<T> entity(Entity entity, Supplier<T> task) {
+        var future = new CompletableFuture<T>();
+        Runnable run = () -> {
+            try {
+                future.complete(task.get());
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        };
+        if (Bukkit.isOwnedByCurrentRegion(entity)) run.run();
+        else entity.getScheduler().run(Vibemine.getInstance(), ignored -> run.run(),
+                () -> future.completeExceptionally(new IllegalStateException("Entity is no longer available")));
+        return future;
     }
 
     public static void region(Location location, Runnable task) {
