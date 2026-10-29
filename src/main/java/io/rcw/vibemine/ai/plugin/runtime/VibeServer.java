@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
+import io.rcw.vibemine.FoliaScheduler;
 import io.rcw.vibemine.Vibemine;
 import io.rcw.vibemine.ai.plugin.runtime.worldgen.VibeChunkGenerators;
 import org.bukkit.Bukkit;
@@ -116,9 +117,7 @@ public final class VibeServer {
             }
         }
 
-        World world = Bukkit.createWorld(creator);
-        if (world == null) throw new IllegalStateException("World could not be created: " + name);
-        return VibeRuntimeWrappers.world(world);
+        return createBukkitWorld(name, creator);
     }
 
     /** JavaScript-friendly overload for a normal world with default generation. */
@@ -130,7 +129,11 @@ public final class VibeServer {
         World existing = Bukkit.getWorld(name);
         if (existing != null) return VibeRuntimeWrappers.world(existing);
         WorldCreator creator = new WorldCreator(name).generator(VibeChunkGenerators.voidGenerator());
-        World world = Bukkit.createWorld(creator);
+        return createBukkitWorld(name, creator);
+    }
+
+    private VibeWorld createBukkitWorld(String name, WorldCreator creator) {
+        World world = FoliaScheduler.global(() -> Bukkit.createWorld(creator)).join();
         if (world == null) throw new IllegalStateException("World could not be created: " + name);
         return VibeRuntimeWrappers.world(world);
     }

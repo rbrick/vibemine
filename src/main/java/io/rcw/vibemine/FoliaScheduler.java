@@ -17,6 +17,20 @@ public final class FoliaScheduler {
         return Bukkit.getGlobalRegionScheduler().run(Vibemine.getInstance(), ignored -> task.run());
     }
 
+    public static <T> CompletableFuture<T> global(Supplier<T> task) {
+        var future = new CompletableFuture<T>();
+        Runnable run = () -> {
+            try {
+                future.complete(task.get());
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        };
+        if (Bukkit.isGlobalTickThread()) run.run();
+        else Bukkit.getGlobalRegionScheduler().run(Vibemine.getInstance(), ignored -> run.run());
+        return future;
+    }
+
     public static ScheduledTask later(Runnable task, long ticks) {
         return Bukkit.getGlobalRegionScheduler().runDelayed(Vibemine.getInstance(), ignored -> task.run(), Math.max(1, ticks));
     }
