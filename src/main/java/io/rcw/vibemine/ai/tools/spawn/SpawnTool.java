@@ -28,7 +28,7 @@ public final class SpawnTool implements Tool<SpawnTool.SpawnInput, SpawnTool.Spa
 
     @Override
     public SpawnOutput execute(Player player, SpawnInput spawnInput) {
-        Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
+        io.rcw.vibemine.FoliaScheduler.region(spawnInput.spawnLocation(), () -> {
             player.getWorld().spawnEntity(spawnInput.spawnLocation, EntityType.valueOf(spawnInput.entityType().name()));
         });
         return new SpawnOutput(true);

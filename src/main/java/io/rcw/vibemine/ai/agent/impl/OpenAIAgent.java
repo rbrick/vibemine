@@ -198,8 +198,8 @@ public final class OpenAIAgent extends Agent {
         Runnable send = () -> {
             if (player.isOnline()) player.sendMessage(LEGACY.deserialize(legacyMessage));
         };
-        if (Bukkit.isPrimaryThread()) send.run();
-        else Bukkit.getScheduler().runTask(Vibemine.getInstance(), send);
+        if (Bukkit.isGlobalTickThread()) send.run();
+        else io.rcw.vibemine.FoliaScheduler.run(send);
     }
 
     private String finalMessageOrError(ChatCompletion.Choice choice, int step) {

@@ -37,7 +37,7 @@ public final class StateTool implements Tool<StateTool.StateInput, StateTool.Sta
                 case "checkout" -> view(store.checkout(input.plugin, owner, version(input), input.branch), store.active(input.plugin));
                 case "delete" -> view(store.delete(input.plugin, owner, version(input), input.file), store.active(input.plugin));
                 case "activate" -> {
-                    if (Bukkit.isPrimaryThread()) throw new IllegalStateException("Agent activation must be requested off-thread");
+                    if (Bukkit.isGlobalTickThread()) throw new IllegalStateException("Agent activation must be requested off-thread");
                     // Empty means no active checkpoint; null means the agent forgot the concurrency guard.
                     if (input.expectedActive == null) throw new IllegalArgumentException("expectedActive is required (empty string when none)");
                     String expected = input.expectedActive.isEmpty() ? null : input.expectedActive;

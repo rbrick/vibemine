@@ -161,7 +161,7 @@ public final class AgentHandler implements Listener {
     }
 
     private void runSync(Runnable task) {
-        Bukkit.getScheduler().runTask(Vibemine.getInstance(), task);
+        io.rcw.vibemine.FoliaScheduler.run(task);
     }
 
     private String describe(Throwable throwable) {

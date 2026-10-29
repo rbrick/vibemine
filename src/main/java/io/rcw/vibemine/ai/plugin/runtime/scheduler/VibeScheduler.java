@@ -1,7 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime.scheduler;
 
-import io.rcw.vibemine.Vibemine;
-import org.bukkit.Bukkit;
+import io.rcw.vibemine.FoliaScheduler;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -36,7 +35,7 @@ public final class VibeScheduler {
      */
     public VibeTask run(Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTask(Vibemine.getInstance(), once(callback)), this::release));
+        return track(new VibeTask(FoliaScheduler.run(once(callback)), this::release));
     }
 
     /**
@@ -44,7 +43,7 @@ public final class VibeScheduler {
      */
     public VibeTask async(Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTaskAsynchronously(Vibemine.getInstance(), once(callback)), this::release));
+        return track(new VibeTask(FoliaScheduler.async(once(callback)), this::release));
     }
 
     /**
@@ -52,7 +51,7 @@ public final class VibeScheduler {
      */
     public VibeTask later(long delayTicks, Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTaskLater(Vibemine.getInstance(), once(callback), delayTicks), this::release));
+        return track(new VibeTask(FoliaScheduler.later(once(callback), delayTicks), this::release));
     }
 
     /**
@@ -74,7 +73,7 @@ public final class VibeScheduler {
      */
     public VibeTask asyncLater(long delayTicks, Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTaskLaterAsynchronously(Vibemine.getInstance(), once(callback), delayTicks), this::release));
+        return track(new VibeTask(FoliaScheduler.asyncLater(once(callback), delayTicks), this::release));
     }
 
     /**
@@ -89,7 +88,7 @@ public final class VibeScheduler {
      */
     public VibeTask repeat(long delayTicks, long periodTicks, Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release));
+        return track(new VibeTask(FoliaScheduler.repeat(repeating(callback), delayTicks, periodTicks), this::release));
     }
 
     /**
@@ -111,7 +110,7 @@ public final class VibeScheduler {
      */
     public VibeTask asyncRepeat(long delayTicks, long periodTicks, Value callback) {
         retain();
-        return track(new VibeTask(Bukkit.getScheduler().runTaskTimerAsynchronously(Vibemine.getInstance(), repeating(callback), delayTicks, periodTicks), this::release));
+        return track(new VibeTask(FoliaScheduler.asyncRepeat(repeating(callback), delayTicks, periodTicks), this::release));
     }
 
     /**

@@ -31,7 +31,7 @@ public final class CommandTool implements Tool<CommandTool.CommandInput, Command
 
     @Override
     public CommandOutput execute(Player player, CommandInput commandInput) {
-        Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> {
+        io.rcw.vibemine.FoliaScheduler.entity(player, () -> {
             for (String command : commandInput.command()) {
                 Bukkit.dispatchCommand(player, command);
             }

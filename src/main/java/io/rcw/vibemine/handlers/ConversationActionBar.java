@@ -1,15 +1,14 @@
 package io.rcw.vibemine.handlers;
 
-import io.rcw.vibemine.Vibemine;
+import io.rcw.vibemine.FoliaScheduler;
 import io.rcw.vibemine.ai.TokenEstimator;
 import io.rcw.vibemine.ai.agent.SystemPrompt;
 import io.rcw.vibemine.ai.chat.Conversation;
 import io.rcw.vibemine.ai.chat.Sender;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Bukkit;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,23 +25,23 @@ public final class ConversationActionBar {
             "summoning code...", "polishing pixels...", "wrangling creepers...", "dreaming in blocks..."
     );
 
-    private final ConcurrentMap<UUID, BukkitTask> tasks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, ScheduledTask> tasks = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Boolean> thinking = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, String> tokenTextCache = new ConcurrentHashMap<>();
 
     public void start(Player player) {
         if (tasks.containsKey(player.getUniqueId())) return;
         int[] tick = {0};
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(Vibemine.getInstance(), () -> render(player, tick[0]++), 0L, 1L);
+        ScheduledTask task = FoliaScheduler.entityRepeat(player, () -> render(player, tick[0]++), 1L, 1L);
         tasks.put(player.getUniqueId(), task);
     }
 
     public void stop(Player player) {
         thinking.remove(player.getUniqueId());
         tokenTextCache.remove(player.getUniqueId());
-        BukkitTask task = tasks.remove(player.getUniqueId());
+        ScheduledTask task = tasks.remove(player.getUniqueId());
         if (task != null) task.cancel();
-        Bukkit.getScheduler().runTask(Vibemine.getInstance(), () -> player.sendActionBar(Component.empty()));
+        FoliaScheduler.entity(player, () -> player.sendActionBar(Component.empty()));
     }
 
     public void setThinking(Player player, boolean value) {

@@ -44,7 +44,7 @@ public final class Conversation {
     public static Conversation setConversation(final Player player, Conversation conversation, boolean fireStartEvent) {
         conversing.put(player.getUniqueId(), conversation);
         if (fireStartEvent) {
-            Bukkit.getScheduler().runTaskAsynchronously(Vibemine.getInstance(), () -> {
+            io.rcw.vibemine.FoliaScheduler.async(() -> {
                 Bukkit.getPluginManager().callEvent(new ConversationStartEvent(player, conversation));
             });
         }

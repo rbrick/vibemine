@@ -332,7 +332,7 @@ public final class VibeCommand implements BasicCommand {
 
     private void stateTask(CommandSender sender, java.util.concurrent.Callable<String> action) {
         var plugin = io.rcw.vibemine.Vibemine.getInstance();
-        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.async(() -> {
             Component message;
             try {
                 String result = action.call();
@@ -343,7 +343,7 @@ public final class VibeCommand implements BasicCommand {
                 message = Component.text("State: " + cause.getMessage(), NamedTextColor.RED);
             }
             Component response = message;
-            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(response));
+            io.rcw.vibemine.FoliaScheduler.run(() -> sender.sendMessage(response));
         });
     }
 

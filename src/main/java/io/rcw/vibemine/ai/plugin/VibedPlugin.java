@@ -188,19 +188,19 @@ public final class VibedPlugin implements RuntimeSwap.Runtime {
 
     private void runOnMainThread(Runnable runnable, Event event) {
         Runnable guarded = guarded(runnable, event);
-        if (Bukkit.isPrimaryThread()) guarded.run();
-        else Bukkit.getScheduler().runTask(plugin, guarded);
+        if (Bukkit.isGlobalTickThread()) guarded.run();
+        else io.rcw.vibemine.FoliaScheduler.run(guarded);
     }
 
     private void runOnMainThreadAndWait(Runnable runnable, Event event) {
         Runnable guarded = guarded(runnable, event);
-        if (Bukkit.isPrimaryThread()) {
+        if (Bukkit.isGlobalTickThread()) {
             guarded.run();
             return;
         }
 
         CompletableFuture<Void> complete = new CompletableFuture<>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.run(() -> {
             try {
                 guarded.run();
                 complete.complete(null);

@@ -116,7 +116,7 @@ public final class VibedPluginManager {
             catch (IOException exception) { throw new java.util.concurrent.CompletionException(exception); }
         }).thenCompose(prepared -> {
             var result = new java.util.concurrent.CompletableFuture<VibedPlugin>();
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            io.rcw.vibemine.FoliaScheduler.run(() -> {
                 try {
                     if ((player instanceof Player online && !online.isOnline()) || !(player.hasPermission("vibemine.vibe.plugins.enable")
                             || player.hasPermission("vibemine.vibe.ide") || player.hasPermission("vibemine.vibe.plugins.revert"))) {
@@ -130,7 +130,7 @@ public final class VibedPluginManager {
     }
 
     public synchronized VibedPlugin activateCheckpoint(PreparedCheckpoint prepared) throws IOException {
-        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Activation must run on the server thread");
+        if (!Bukkit.isGlobalTickThread()) throw new IllegalStateException("Activation must run on the server thread");
         if (!Objects.equals(stateStore.active(prepared.name()), prepared.expectedActive())) {
             throw new IOException("Active checkpoint changed; refresh before activating");
         }
@@ -555,9 +555,9 @@ public final class VibedPluginManager {
 
         // Delay command-tree refresh until after command map mutation has completed. Calling
         // updateCommands inline during hot-swap can race Paper's async command-tree builder.
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.later(() -> {
             try {
-                Bukkit.getOnlinePlayers().forEach(Player::updateCommands);
+                Bukkit.getOnlinePlayers().forEach(player -> io.rcw.vibemine.FoliaScheduler.entity(player, player::updateCommands));
             } catch (Exception exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not refresh player command trees", exception);
             }

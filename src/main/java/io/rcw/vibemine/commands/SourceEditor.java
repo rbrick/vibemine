@@ -96,21 +96,21 @@ final class SourceEditor {
     }
 
     private void show(Player player, Dialog dialog) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.entity(player, () -> {
             if (player.isOnline() && player.hasPermission(PERMISSION)) player.showDialog(dialog);
         });
     }
 
     private void message(Player player, Component text) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.entity(player, () -> {
             if (player.isOnline()) player.sendMessage(text);
         });
     }
 
     private void run(Player player, IOAction action) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        io.rcw.vibemine.FoliaScheduler.entity(player, () -> {
             if (!player.isOnline() || !player.hasPermission(PERMISSION)) return;
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            io.rcw.vibemine.FoliaScheduler.async(() -> {
                 try { action.run(); }
                 catch (IOException | RuntimeException exception) {
                     message(player, Component.text("Editor: " + exception.getMessage(), NamedTextColor.RED));
