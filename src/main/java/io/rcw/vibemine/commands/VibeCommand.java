@@ -58,7 +58,7 @@ public final class VibeCommand implements BasicCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String @NonNull [] args) {
         if (args.length == 0 || args.length == 1) {
-            return List.of("ide", "start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate", "revisions", "revert", "state", "checkpoint", "branch", "checkout", "activate").stream()
+            return List.of("auth", "ide", "start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate", "revisions", "revert", "state", "checkpoint", "branch", "checkout", "activate").stream()
                     .filter(command -> args.length == 0 || command.startsWith(args[0].toLowerCase()))
                     .toList();
         }
@@ -90,6 +90,7 @@ public final class VibeCommand implements BasicCommand {
         }
 
         switch (args[0].toLowerCase()) {
+            case "auth" -> auth(sender, args);
             case "ide" -> {
                 if (requirePlayer(sender) && requirePermission(sender, SourceEditor.PERMISSION)) {
                     new SourceEditor(pluginManager).open((Player) sender);
@@ -109,6 +110,35 @@ public final class VibeCommand implements BasicCommand {
             case "state", "checkpoint", "branch", "checkout" -> stateCommand(sender, args);
             default -> help(sender);
         }
+    }
+
+    private void auth(CommandSender sender, String[] args) {
+        if (!(sender instanceof org.bukkit.command.ConsoleCommandSender)) {
+            sender.sendMessage(Component.text("ChatGPT sign-in is server-wide and managed from the local server console, not Minecraft chat.", NamedTextColor.RED));
+            return;
+        }
+        if (args.length != 2) {
+            sender.sendMessage(Component.text("Usage: vibe auth <login|host|import|status|models|logout>", NamedTextColor.YELLOW));
+            return;
+        }
+        stateTask(sender, () -> {
+            var plugin = io.rcw.vibemine.Vibemine.getInstance();
+            var credentials = plugin.getSubscriptionCredentials();
+            if (credentials == null) throw new IllegalStateException("Auth storage unavailable. Check POSIX file permissions and restart the server.");
+            return switch (args[1].toLowerCase(java.util.Locale.ROOT)) {
+                case "login", "host" -> "Server host ID: " + credentials.hostId()
+                        + "\nRun the local ChatGptLogin helper with this host ID. See docs/chatgpt-sign-in.md. No callback port is opened on this server.";
+                case "import" -> {
+                    credentials.importCredentials();
+                    yield "ChatGPT credentials imported for the entire server. " + credentials.status();
+                }
+                case "status" -> credentials.status() + " | subscription enabled: " + plugin.getConfig().getBoolean("ai.subscription.enabled", true)
+                        + " | API fallback (billable): " + plugin.getConfig().getBoolean("ai.subscription.api_fallback", true);
+                case "models" -> credentials.models();
+                case "logout" -> credentials.logout();
+                default -> throw new IllegalArgumentException("Unknown auth action");
+            };
+        });
     }
 
     private void start(CommandSender sender) {
@@ -338,6 +368,7 @@ public final class VibeCommand implements BasicCommand {
     }
 
     private void help(CommandSender sender) {
+        sender.sendMessage(Component.text("/vibe auth <login|host|import|status|models|logout> (local server console only)", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe ide", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe state <plugin> | checkpoint <plugin> <message>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe branch <plugin> <branch> <checkpoint> | checkout <plugin> <branch>", NamedTextColor.YELLOW));

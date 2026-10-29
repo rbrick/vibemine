@@ -2,4 +2,9 @@ database:
   file: "vibe.db"
 ai:
   api_key: "<your api key>"
-  model: "gpt-5.4-mini"
+  model: "gpt-5.4-mini" # API-key model
+  subscription:
+    enabled: true
+    model: "gpt-5.4-mini" # Choose an available slug using `vibe auth models`.
+    # WARNING: fallback uses ai.api_key and can incur normal OpenAI API charges.
+    api_fallback: true

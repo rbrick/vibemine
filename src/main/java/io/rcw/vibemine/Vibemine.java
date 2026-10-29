@@ -54,6 +54,7 @@ public final class Vibemine extends JavaPlugin {
     private VibedPluginManager vibedPluginManager;
     private ConversationStore conversationStore;
     private Path databasePath;
+    private io.rcw.vibemine.ai.auth.SubscriptionCredentials subscriptionCredentials;
 
     Vibemine() {
         instance = this;
@@ -63,9 +64,18 @@ public final class Vibemine extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
         var config = getConfig();
+        try {
+            subscriptionCredentials = new io.rcw.vibemine.ai.auth.SubscriptionCredentials(getDataFolder().toPath().resolve("auth"));
+        } catch (java.io.IOException exception) {
+            getLogger().warning("ChatGPT authentication storage could not be opened. Check auth file permissions; API fallback is controlled by config.");
+        }
+        if (config.getBoolean("ai.subscription.api_fallback", true)) {
+            getLogger().warning("OpenAI API fallback is enabled. Requests may incur API charges when subscription access is unavailable.");
+        }
         var agent = new OpenAIAgent(
-                config.getString("ai.model"),
-                config.getString("ai.api_key")
+                config.getString("ai.model"), config.getString("ai.api_key"), subscriptionCredentials,
+                config.getBoolean("ai.subscription.enabled", true), config.getBoolean("ai.subscription.api_fallback", true),
+                config.getString("ai.subscription.model", config.getString("ai.model"))
         );
 
         registerTools(agent);
@@ -134,6 +144,8 @@ public final class Vibemine extends JavaPlugin {
     public VibedPluginManager getVibedPluginManager() {
         return vibedPluginManager;
     }
+
+    public io.rcw.vibemine.ai.auth.SubscriptionCredentials getSubscriptionCredentials() { return subscriptionCredentials; }
 
     public ConversationStore getConversationStore() {
         return conversationStore;

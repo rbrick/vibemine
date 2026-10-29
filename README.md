@@ -21,7 +21,7 @@ VibeMine is a Paper plugin that lets players build and hot-swap small Minecraft 
 - Java 25
 - Gradle wrapper included in this repository
 - A Paper server compatible with the configured API version
-- An OpenAI API key
+- An eligible server-owner ChatGPT connection, or an OpenAI API key
 
 ### Build
 
@@ -53,9 +53,15 @@ database:
 ai:
   api_key: "<your api key>"
   model: "gpt-5.4-mini"
+  subscription:
+    enabled: true
+    model: "gpt-5.4-mini" # Select an eligible account model with `vibe auth models`.
+    api_fallback: true # WARNING: API fallback incurs normal API charges.
 ```
 
-Set your API key in the generated plugin config folder before using AI features.
+Connect the server owner's ChatGPT account using the [local sign-in helper and secure import](docs/chatgpt-sign-in.md), or configure an API key. One connection serves the whole server; players do not sign in. API fallback is retained and configurable. Sign-in requires Java 25 and POSIX credential storage on the local computer and server; account eligibility and subscription limits still apply.
+
+Manage the connection from the **local server console** with `vibe auth login`, `import`, `status`, `models`, and `logout`. Never paste credentials into Minecraft chat. Restart after config changes.
 
 ## 💬 Commands
 

@@ -37,11 +37,17 @@ public final class OpenAIAgent extends Agent {
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     private final OpenAIClientAsync client;
+    private final SubscriptionResponses subscription;
+    private final boolean apiFallback;
     private final Map<String, OpenAITool> tools = new LinkedHashMap<>();
 
-    public OpenAIAgent(String model, String apiKey) {
+    public OpenAIAgent(String model, String apiKey, io.rcw.vibemine.ai.auth.SubscriptionCredentials credentials,
+                       boolean subscriptionEnabled, boolean apiFallback, String subscriptionModel) {
         super(model);
-        this.client = OpenAIOkHttpClientAsync.builder().apiKey(apiKey).build();
+        this.client = apiKey == null || apiKey.isBlank() || apiKey.startsWith("<") ? null
+                : OpenAIOkHttpClientAsync.builder().apiKey(apiKey).build();
+        this.subscription = subscriptionEnabled ? new SubscriptionResponses(credentials, subscriptionModel) : null;
+        this.apiFallback = apiFallback;
     }
 
     @Override
@@ -49,7 +55,8 @@ public final class OpenAIAgent extends Agent {
         var latestUserMessage = latestUserMessage(conversation);
         return summarize(conversation).thenCompose(summary -> {
             var messages = initialMessages(summary, latestUserMessage.message());
-            return complete(messages).thenCompose(chat -> processChat(conversation, messages, chat, 0));
+            var session = new SubscriptionResponses.Session();
+            return complete(createParams(messages), session).thenCompose(chat -> processChat(conversation, messages, chat, 0, session));
         });
     }
 
@@ -63,8 +70,7 @@ public final class OpenAIAgent extends Agent {
                 ))
         );
 
-        return client.chat().completions()
-                .create(ChatCompletionCreateParams.builder().model(SUMMARIZE_MODEL).messages(messages).build())
+        return complete(ChatCompletionCreateParams.builder().model(SUMMARIZE_MODEL).messages(messages).build(), new SubscriptionResponses.Session())
                 .thenApply(chat -> chat.choices().getFirst().message().content().orElse("failed to get response"));
     }
 
@@ -74,7 +80,7 @@ public final class OpenAIAgent extends Agent {
         tools.put(openAITool.name(), openAITool);
     }
 
-    private CompletableFuture<AgentResponse> processChat(Conversation conversation, List<ChatCompletionMessageParam> messages, ChatCompletion chat, int step) {
+    private CompletableFuture<AgentResponse> processChat(Conversation conversation, List<ChatCompletionMessageParam> messages, ChatCompletion chat, int step, SubscriptionResponses.Session session) {
         if (chat.choices().isEmpty()) {
             return completedError("The model returned no choices. Please try again.");
         }
@@ -105,11 +111,28 @@ public final class OpenAIAgent extends Agent {
                     .build()));
         });
 
-        return complete(messages).thenCompose(next -> processChat(conversation, messages, next, step + 1));
+        return complete(createParams(messages), session).thenCompose(next -> processChat(conversation, messages, next, step + 1, session));
     }
 
-    private CompletableFuture<ChatCompletion> complete(List<ChatCompletionMessageParam> messages) {
-        return client.chat().completions().create(createParams(messages));
+    private CompletableFuture<ChatCompletion> complete(ChatCompletionCreateParams params, SubscriptionResponses.Session session) {
+        if (subscription == null || session.apiOnly) return api(params);
+        return subscription.complete(params, session).handle((response, failure) -> {
+            if (failure == null) return CompletableFuture.completedFuture(response);
+            Throwable cause = failure;
+            while (cause.getCause() != null) cause = cause.getCause();
+            boolean allowed = cause instanceof SubscriptionResponses.Failure rejected ? rejected.allowFallback
+                    : cause instanceof java.io.IOException || cause instanceof java.util.concurrent.TimeoutException;
+            if (!apiFallback || client == null || !allowed) return CompletableFuture.<ChatCompletion>failedFuture(cause);
+            // Only completed responses reach tool execution. Falling back cannot replay a partial tool call.
+            session.apiOnly = true;
+            Vibemine.getInstance().getLogger().warning("ChatGPT subscription unavailable; using configured OpenAI API key. API charges apply.");
+            return api(params);
+        }).thenCompose(result -> result);
+    }
+
+    private CompletableFuture<ChatCompletion> api(ChatCompletionCreateParams params) {
+        if (client == null) return CompletableFuture.failedFuture(new IllegalStateException("No usable API key. Connect ChatGPT with vibe auth import or configure ai.api_key."));
+        return client.chat().completions().create(params);
     }
 
     private ChatCompletionCreateParams createParams(List<ChatCompletionMessageParam> messages) {
