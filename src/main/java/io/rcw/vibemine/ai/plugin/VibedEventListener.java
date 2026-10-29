@@ -101,12 +101,6 @@ final class VibedEventListener implements Listener {
     @EventHandler public void onServerLoad(ServerLoadEvent event) { dispatch("server_load", event); }
 
     private void dispatch(String eventName, org.bukkit.event.Event event) {
-        debug(eventName);
         plugins.dispatch(eventName, event);
-    }
-
-
-    private void debug(String message) {
-        org.bukkit.Bukkit.getLogger().info("[Vibemine event listener] " + message);
     }
 }

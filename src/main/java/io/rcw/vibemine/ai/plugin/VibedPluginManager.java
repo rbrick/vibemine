@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.NoSuchFileException;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,11 +34,17 @@ public final class VibedPluginManager {
     private final Map<String, VibedPlugin> plugins = new ConcurrentHashMap<>();
     private final Map<String, List<VibedPlugin>> eventIndex = new ConcurrentHashMap<>();
     private final Map<String, Command> registeredCommands = new ConcurrentHashMap<>();
+    private final PluginStateStore stateStore;
     private VibedEventListener listener;
 
     public VibedPluginManager(Vibemine plugin) {
         this.plugin = plugin;
         this.pluginsDirectory = plugin.getDataFolder().toPath().resolve("vibed-plugins");
+        try {
+            this.stateStore = new PluginStateStore(plugin.getDataFolder().toPath().resolve("plugin-state.db"), pluginsDirectory);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not open plugin state database", exception);
+        }
     }
 
     public void enable() {
@@ -60,6 +65,8 @@ public final class VibedPluginManager {
         registeredCommands.values().forEach(this::unregisterCommand);
         registeredCommands.clear();
         if (listener != null) HandlerList.unregisterAll(listener);
+        try { stateStore.close(); }
+        catch (IOException exception) { plugin.getLogger().log(Level.WARNING, "Could not close plugin state database", exception); }
     }
 
     public Collection<VibedPlugin> plugins() {
@@ -70,11 +77,10 @@ public final class VibedPluginManager {
         try {
             Files.createDirectories(pluginsDirectory);
             try (var paths = Files.list(pluginsDirectory)) {
-                return paths
-                        .filter(path -> Files.isDirectory(path) && Files.exists(path.resolve("plugin.json")))
-                        .map(path -> path.getFileName().toString())
-                        .sorted()
-                        .toList();
+                Set<String> names = new TreeSet<>(stateStore.activePlugins());
+                paths.filter(path -> Files.isDirectory(path) && Files.exists(path.resolve("plugin.json")))
+                        .map(path -> path.getFileName().toString()).forEach(names::add);
+                return List.copyOf(names);
             }
         } catch (IOException exception) {
             plugin.getLogger().log(Level.WARNING, "Failed to list persisted vibed plugins", exception);
@@ -88,6 +94,47 @@ public final class VibedPluginManager {
 
     public List<String> enabledPluginNames() {
         return plugins.keySet().stream().sorted().toList();
+    }
+
+    public PluginStateStore stateStore() { return stateStore; }
+
+    public List<PluginStateStore.Checkpoint> revisions(String pluginName, int limit) throws IOException {
+        return stateStore.history(pluginName, limit);
+    }
+
+    public record PreparedCheckpoint(String name, String id, String expectedActive, VibedPluginSchema schema) {}
+
+    public PreparedCheckpoint prepareCheckpoint(String name, String id, String expectedActive) throws IOException {
+        PluginStateStore.name(name);
+        VibedPluginSchema schema = CheckpointSources.read(name, stateStore.snapshot(name, id));
+        return new PreparedCheckpoint(name, id, expectedActive, schema);
+    }
+
+    public java.util.concurrent.CompletableFuture<VibedPlugin> activateAsync(CommandSender player, String name, String id, String expectedActive) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return prepareCheckpoint(name, id, expectedActive); }
+            catch (IOException exception) { throw new java.util.concurrent.CompletionException(exception); }
+        }).thenCompose(prepared -> {
+            var result = new java.util.concurrent.CompletableFuture<VibedPlugin>();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                try {
+                    if ((player instanceof Player online && !online.isOnline()) || !(player.hasPermission("vibemine.vibe.plugins.enable")
+                            || player.hasPermission("vibemine.vibe.ide") || player.hasPermission("vibemine.vibe.plugins.revert"))) {
+                        throw new SecurityException("Plugin activation permission is required");
+                    }
+                    result.complete(activateCheckpoint(prepared));
+                } catch (Exception exception) { result.completeExceptionally(exception); }
+            });
+            return result;
+        });
+    }
+
+    public synchronized VibedPlugin activateCheckpoint(PreparedCheckpoint prepared) throws IOException {
+        if (!Bukkit.isPrimaryThread()) throw new IllegalStateException("Activation must run on the server thread");
+        if (!Objects.equals(stateStore.active(prepared.name()), prepared.expectedActive())) {
+            throw new IOException("Active checkpoint changed; refresh before activating");
+        }
+        return install(prepared.schema(), () -> stateStore.markActive(prepared.name(), prepared.id(), prepared.expectedActive()));
     }
 
     public void requireImport(String requester, String imported) {
@@ -147,6 +194,8 @@ public final class VibedPluginManager {
 
     public synchronized VibedPlugin enablePlugin(String name) throws IOException {
         String normalized = normalizeName(name);
+        String active = stateStore.active(normalized);
+        if (active != null) return activateCheckpoint(prepareCheckpoint(normalized, active, active));
         Path path = pluginsDirectory.resolve(normalized).resolve("plugin.json");
         if (!Files.exists(path)) throw new NoSuchFileException(normalized + "/plugin.json");
         return load(path);
@@ -158,17 +207,18 @@ public final class VibedPluginManager {
 
     public synchronized boolean deletePlugin(String name) throws IOException {
         String normalized = normalizeName(name);
-        boolean wasLoaded = unload(normalized);
+        boolean hadCheckpoint = stateStore.active(normalized) != null;
         Path path = pluginsDirectory.resolve(normalized);
-        if (Files.exists(path)) {
+        boolean existed = Files.exists(path);
+        if (existed) {
+            stateStore.workspace(normalized, "deleted-source");
             try (var walk = Files.walk(path)) {
-                walk.sorted(Comparator.reverseOrder()).forEach(candidate -> {
-                    try { Files.deleteIfExists(candidate); } catch (IOException ignored) { }
-                });
+                for (Path candidate : walk.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(candidate);
             }
-            return true;
         }
-        return wasLoaded;
+        stateStore.forgetActive(normalized);
+        boolean wasLoaded = unload(normalized);
+        return wasLoaded || hadCheckpoint || existed;
     }
 
     public List<String> oldPluginNames() {
@@ -226,34 +276,22 @@ public final class VibedPluginManager {
     }
 
     public void loadAll() {
-        try (var paths = Files.list(pluginsDirectory)) {
-            List<Path> pluginPaths = paths
-                    .filter(Files::isDirectory)
-                    .map(path -> path.resolve("plugin.json"))
-                    .filter(Files::exists)
-                    .toList();
-            Map<String, Path> pathByName = new HashMap<>();
-            List<VibedPluginSchema> schemas = new ArrayList<>();
-            for (Path path : pluginPaths) {
-                try {
-                    VibedPluginSchema schema = parseSchema(Files.readString(path, StandardCharsets.UTF_8));
-                    schemas.add(schema);
-                    pathByName.put(normalizeName(schema.name()), path);
-                } catch (Exception exception) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to read vibed plugin " + path.getFileName(), exception);
-                }
+        List<VibedPluginSchema> schemas = new ArrayList<>();
+        for (String name : pluginNames()) {
+            try {
+                String active = stateStore.active(name);
+                schemas.add(active == null
+                        ? parseSchema(Files.readString(pluginsDirectory.resolve(name).resolve("plugin.json")))
+                        : prepareCheckpoint(name, active, active).schema());
+            } catch (Exception exception) {
+                plugin.getLogger().log(Level.WARNING, "Failed to read vibed plugin " + name, exception);
             }
-            for (VibedPluginSchema schema : VibedPluginDependencies.loadOrder(schemas)) {
-                Path path = pathByName.get(normalizeName(schema.name()));
-                if (path == null || plugins.containsKey(normalizeName(schema.name()))) continue;
-                try {
-                    load(path);
-                } catch (Exception exception) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to load vibed plugin " + path.getFileName(), exception);
-                }
+        }
+        for (VibedPluginSchema schema : VibedPluginDependencies.loadOrder(schemas)) {
+            try { enablePlugin(schema.name()); }
+            catch (Exception exception) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load vibed plugin " + schema.name(), exception);
             }
-        } catch (IOException exception) {
-            plugin.getLogger().log(Level.WARNING, "Failed to list vibed plugins", exception);
         }
     }
 
@@ -268,6 +306,8 @@ public final class VibedPluginManager {
 
     public synchronized String existingPluginJson(String name) throws IOException {
         String normalized = normalizeName(name);
+        String active = stateStore.active(normalized);
+        if (active != null) return stateStore.snapshot(normalized, active).get("plugin.json");
         Path path = pluginsDirectory.resolve(normalized).resolve("plugin.json");
         if (!Files.exists(path)) throw new NoSuchFileException(normalized + "/plugin.json");
         return Files.readString(path, StandardCharsets.UTF_8);
@@ -293,28 +333,12 @@ public final class VibedPluginManager {
     }
 
     private synchronized VibedPlugin saveAndLoad(VibedPluginSchema schema) throws IOException {
-        String name = normalizeName(schema.name());
-        Path pluginDirectory = pluginsDirectory.resolve(name);
-        Path path = pluginDirectory.resolve("plugin.json");
-        Path tempPath = pluginDirectory.resolve("plugin.json.tmp");
-
-        Files.createDirectories(pluginDirectory);
-
-        // Updating a generated plugin is intentionally a full replacement on disk.
-        unload(name);
-        Files.deleteIfExists(path);
-
-        Files.writeString(tempPath, Vibemine.GSON.toJson(schema), StandardCharsets.UTF_8);
-        moveIntoPlace(tempPath, path);
-
-        try {
-            return load(path);
-        } catch (Exception exception) {
-            Files.deleteIfExists(path);
-            throw exception;
-        } finally {
-            Files.deleteIfExists(tempPath);
-        }
+        String name = PluginStateStore.name(schema.name());
+        var workspace = stateStore.workspace(name, "legacy-inline");
+        String expectedActive = stateStore.active(name);
+        var changed = stateStore.write(name, workspace.owner(), workspace.version(), "plugin.json", Vibemine.GSON.toJson(schema));
+        String id = stateStore.checkpoint(name, workspace.owner(), changed.version(), "Legacy inline plugin update");
+        return activateCheckpoint(prepareCheckpoint(name, id, expectedActive));
     }
 
     private void copyIfPresent(JsonObject source, JsonObject target, String key) {
@@ -358,23 +382,39 @@ public final class VibedPluginManager {
         return -1;
     }
 
-    private void moveIntoPlace(Path tempPath, Path path) throws IOException {
-        try {
-            Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException atomicMoveFailed) {
-            Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
     public synchronized VibedPlugin load(Path path) throws IOException {
         VibedPluginSchema schema = materializeSchema(path, parseSchema(Files.readString(path, StandardCharsets.UTF_8)));
+        return install(schema, () -> {});
+    }
+
+    private VibedPlugin install(VibedPluginSchema schema, RuntimeSwap.Commit commit) throws IOException {
         String name = normalizeName(schema.name());
-        if (plugins.containsKey(name)) {
-            unload(name);
+        VibedPlugin previous = plugins.get(name);
+        VibedPlugin candidate = new VibedPlugin(plugin, schema);
+        validateImports(candidate);
+        for (VibedCommand command : candidate.commands()) {
+            boolean used = plugins.values().stream().filter(other -> other != previous)
+                    .flatMap(other -> other.commands().stream()).anyMatch(other -> other.label().equals(command.label()));
+            if (used) throw new IOException("Command already belongs to another plugin: " + command.label());
         }
-        VibedPlugin vibedPlugin = new VibedPlugin(plugin, schema);
-        validateImports(vibedPlugin);
-        vibedPlugin.enable();
+        RuntimeSwap.install(previous, candidate, this::attach, this::detach, commit);
+        if (previous != null) {
+            try { previous.disable(); }
+            catch (RuntimeException exception) { plugin.getLogger().log(Level.WARNING, "Could not dispose previous plugin " + name, exception); }
+        }
+        return candidate;
+    }
+
+    private void detach(VibedPlugin removed) {
+        plugins.remove(removed.name(), removed);
+        eventIndex.entrySet().removeIf(entry -> {
+            entry.getValue().remove(removed);
+            return entry.getValue().isEmpty();
+        });
+        removed.commands().forEach(command -> Optional.ofNullable(registeredCommands.remove(command.label())).ifPresent(this::unregisterCommand));
+    }
+
+    private void attach(VibedPlugin vibedPlugin) {
         plugins.put(vibedPlugin.name(), vibedPlugin);
         plugin.getLogger().info("Loaded vibed plugin '" + vibedPlugin.name() + "' with " + vibedPlugin.events().size() + " events and " + vibedPlugin.commands().size() + " commands");
         vibedPlugin.events().forEach(event -> {
@@ -383,7 +423,6 @@ public final class VibedPluginManager {
             plugin.getLogger().info("Registered vibed event '" + normalizedEventName + "' for plugin '" + vibedPlugin.name() + "'");
         });
         vibedPlugin.commands().forEach(command -> registerCommand(vibedPlugin, command));
-        return vibedPlugin;
     }
 
     private void validateImports(VibedPlugin vibedPlugin) {
@@ -425,9 +464,7 @@ public final class VibedPluginManager {
     void dispatch(String eventName, Event event) {
         String normalizedEventName = normalizeEventName(eventName);
         List<VibedPlugin> listeners = List.copyOf(eventIndex.getOrDefault(normalizedEventName, List.of()));
-        plugin.getLogger().info("Dispatching vibed event '" + normalizedEventName + "' from " + event.getClass().getSimpleName() + " to " + listeners.size() + " plugin(s)");
         for (VibedPlugin vibedPlugin : listeners) {
-            plugin.getLogger().info("Executing vibed event '" + normalizedEventName + "' for plugin '" + vibedPlugin.name() + "'");
             vibedPlugin.executeEvent(normalizedEventName, event);
         }
     }
@@ -529,21 +566,7 @@ public final class VibedPluginManager {
 
     private VibedPluginSchema materializeSchema(Path pluginJsonPath, VibedPluginSchema schema) throws IOException {
         Path pluginRoot = pluginJsonPath.getParent();
-        List<io.rcw.vibemine.ai.plugin.schema.Command> commands = schema.commands() == null ? null : schema.commands().stream()
-                .map(command -> new io.rcw.vibemine.ai.plugin.schema.Command(
-                        command.label(),
-                        command.permission(),
-                        sourceFromPath(pluginRoot, command.code(), command.path()),
-                        command.path()))
-                .toList();
-        List<io.rcw.vibemine.ai.plugin.schema.Event> events = schema.events() == null ? null : schema.events().stream()
-                .map(event -> new io.rcw.vibemine.ai.plugin.schema.Event(
-                        event.event(),
-                        sourceFromPath(pluginRoot, event.code(), event.path()),
-                        event.path()))
-                .toList();
-        String globals = sourceFromPath(pluginRoot, schema.globals(), schema.globalsPath());
-        return new VibedPluginSchema(schema.name(), schema.description(), globals, schema.globalsPath(), schema.version(), schema.imports(), schema.exports(), schema.pluginEvents(), commands, events);
+        return CheckpointSources.materialize(schema, (inline, path) -> sourceFromPath(pluginRoot, inline, path));
     }
 
     private String sourceFromPath(Path pluginRoot, String inlineCode, String relativePath) {
@@ -551,6 +574,7 @@ public final class VibedPluginManager {
         try {
             Path resolved = pluginRoot.resolve(relativePath).normalize();
             if (!resolved.startsWith(pluginRoot.normalize())) throw new SecurityException("Path escapes plugin directory: " + relativePath);
+            if (!resolved.toRealPath().startsWith(pluginRoot.toRealPath())) throw new SecurityException("Symlink escapes plugin directory: " + relativePath);
             return Files.readString(resolved, StandardCharsets.UTF_8);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Could not read script path '" + relativePath + "'", exception);

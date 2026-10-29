@@ -24,3 +24,7 @@ permissions:
     default: op
   vibemine.vibe.plugins.translate:
     default: op
+  vibemine.vibe.plugins.revisions:
+    default: op
+  vibemine.vibe.plugins.revert:
+    default: op

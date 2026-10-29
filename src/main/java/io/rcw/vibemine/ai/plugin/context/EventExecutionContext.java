@@ -5,6 +5,7 @@ import io.rcw.vibemine.ai.plugin.ExecutionContext;
 import io.rcw.vibemine.ai.plugin.runtime.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.event.Cancellable;
@@ -20,6 +21,7 @@ import org.bukkit.inventory.EquipmentSlot;
 
 public final class EventExecutionContext implements ExecutionContext {
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacy('&');
+    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
     private final String name;
@@ -113,12 +115,21 @@ public final class EventExecutionContext implements ExecutionContext {
     }
 
     public void setMessage(String message) {
-        if (event instanceof AsyncChatEvent chatEvent) chatEvent.message(component(message));
+        setMessage(component(message));
+    }
+
+    public void setMessage(Component message) {
+        if (event instanceof AsyncChatEvent chatEvent) chatEvent.message(message == null ? Component.empty() : message);
     }
 
     public void setFormat(String format) {
+        setFormat(component(format));
+    }
+
+    public void setFormat(Component format) {
         if (!(event instanceof AsyncChatEvent chatEvent)) return;
-        chatEvent.renderer((source, sourceDisplayName, message, viewer) -> component(format)
+        Component safeFormat = format == null ? Component.empty() : format;
+        chatEvent.renderer((source, sourceDisplayName, message, viewer) -> safeFormat
                 .replaceText(builder -> builder.matchLiteral("{player}").replacement(sourceDisplayName))
                 .replaceText(builder -> builder.matchLiteral("{name}").replacement(sourceDisplayName))
                 .replaceText(builder -> builder.matchLiteral("{message}").replacement(message))
@@ -126,13 +137,26 @@ public final class EventExecutionContext implements ExecutionContext {
     }
 
     public void broadcast(String message) {
+        broadcast(component(message));
+    }
+
+    public void broadcast(Component message) {
         if (event instanceof AsyncChatEvent chatEvent) {
-            chatEvent.viewers().forEach(viewer -> viewer.sendMessage(component(message)));
+            Component safeMessage = message == null ? Component.empty() : message;
+            chatEvent.viewers().forEach(viewer -> viewer.sendMessage(safeMessage));
         }
     }
 
     private Component component(String message) {
-        return message == null ? Component.empty() : LEGACY.deserialize(message);
+        if (message == null) return Component.empty();
+        if (message.indexOf('<') >= 0 && message.indexOf('>') > message.indexOf('<')) {
+            try {
+                return MINI_MESSAGE.deserialize(message);
+            } catch (RuntimeException ignored) {
+                // Fall back to legacy ampersand formatting below.
+            }
+        }
+        return LEGACY.deserialize(message);
     }
 
 }

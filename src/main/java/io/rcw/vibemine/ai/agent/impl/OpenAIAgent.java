@@ -154,6 +154,7 @@ public final class OpenAIAgent extends Agent {
             case "file_edit" -> "&8&oediting file " + fileDescription(args);
             case "file_write" -> "&8&owriting file " + fileDescription(args);
             case "plugin_context" -> "&8&ochecking existing vibed plugins";
+            case "state" -> "&8&omanaging plugin checkpoints";
             case "syntax_highlight" -> "&8&opreviewing generated code";
             case "command" -> "&8&orunning command " + jsonArg(args, "command", "");
             case "ray_trace" -> "&8&olooking where you are pointing";

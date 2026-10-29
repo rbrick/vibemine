@@ -20,7 +20,7 @@ import io.rcw.vibemine.ai.plugin.runtime.worldgen.VibeChunkGenerators;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
-public final class VibedPlugin {
+public final class VibedPlugin implements RuntimeSwap.Runtime {
     private final Vibemine plugin;
     private final VibedPluginSchema schema;
     private final Map<String, VibedEvent> events = new ConcurrentHashMap<>();

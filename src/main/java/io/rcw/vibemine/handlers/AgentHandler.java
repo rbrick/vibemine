@@ -69,6 +69,7 @@ public final class AgentHandler implements Listener {
     }
 
     private void loadGeneratedPlugin(AsyncAgentResponseEvent event, AgentResponse response) {
+        if (!canActivate(event)) return;
         try {
             var json = response.responseJson();
             if (json == null || json.isJsonNull()) {
@@ -88,6 +89,7 @@ public final class AgentHandler implements Listener {
     }
 
     private void patchGeneratedPlugin(AsyncAgentResponseEvent event, AgentResponse response) {
+        if (!canActivate(event)) return;
         try {
             var json = response.responseJson();
             if (json == null || !json.isJsonObject()) {
@@ -109,6 +111,12 @@ public final class AgentHandler implements Listener {
         } catch (Exception exception) {
             fail(event, "Could not patch the generated plugin: " + exception.getMessage());
         }
+    }
+
+    private boolean canActivate(AsyncAgentResponseEvent event) {
+        if (event.getPlayer().hasPermission("vibemine.vibe.plugins.enable") || event.getPlayer().hasPermission("vibemine.vibe.ide")) return true;
+        fail(event, "Plugin activation requires operator permission. Ask the agent to save a workspace checkpoint instead.");
+        return false;
     }
 
     private void previewGeneratedPlugin(AsyncAgentResponseEvent event, String pluginJson) {

@@ -66,10 +66,16 @@ Set your API key in the generated plugin config folder before using AI features.
 | `/vibe sessions` | List recent saved sessions |
 | `/vibe stop` | Save and stop your active session |
 | `/vibe plugins` | List generated VibePlugins |
-| `/vibe ide` | Select a plugin and edit a `.js` source file in a multiline dialog titled with its filename (16,000-character limit). Save writes to disk; use `/vibe enable <plugin>` to reload. Cancel discards edits. |
+| `/vibe ide` | Edit `.js` source in a multiline dialog titled with its filename (16,000-character limit). Save creates a workspace checkpoint; activate it separately. |
 | `/vibe enable <plugin>` | Enable a generated plugin |
 | `/vibe disable <plugin>` | Disable a generated plugin |
-| `/vibe delete <plugin>` | Delete a generated plugin |
+| `/vibe delete <plugin>` | Delete a generated plugin (checkpoint history is retained) |
+| `/vibe state <plugin>` | Show workspace state and branches |
+| `/vibe checkpoint <plugin> <message>` | Save all workspace edits |
+| `/vibe branch <plugin> <branch> [checkpoint]` | Fork your workspace or create a branch at a checkpoint |
+| `/vibe checkout <plugin> <branch>` | Switch a clean workspace |
+| `/vibe revisions <plugin>` | List saved checkpoints |
+| `/vibe activate <plugin> <checkpoint>` | Activate a checkpoint without discarding edits or later history |
 
 ## 🔐 Permissions
 
@@ -84,6 +90,10 @@ Set your API key in the generated plugin config folder before using AI features.
 | `vibemine.vibe.plugins.enable` | Operators |
 | `vibemine.vibe.plugins.disable` | Operators |
 | `vibemine.vibe.plugins.delete` | Operators |
+| `vibemine.vibe.plugins.revisions` | Operators |
+| `vibemine.vibe.plugins.revert` | Operators |
+
+Plugin source now lives in isolated persistent workspaces with SQLite checkpoints and branches. File writes do not auto-reload plugins. `/vibe enable` reloads the active version, not unpublished workspace edits. See [source state and recovery](docs/plugin-state.md) for agent tools, permissions, limits and backup instructions.
 
 ## 🧪 Example vibes
 

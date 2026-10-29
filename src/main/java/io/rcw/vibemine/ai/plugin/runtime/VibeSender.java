@@ -1,5 +1,6 @@
 package io.rcw.vibemine.ai.plugin.runtime;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -26,6 +27,11 @@ public class VibeSender {
      * JavaScript binding for {@code sendMessage}.
      */
     public void sendMessage(String message) { this.sender.sendMessage(VibeText.component(message)); }
+
+    /**
+     * JavaScript binding for {@code sendMessage} with an Adventure component.
+     */
+    public void sendMessage(Component message) { this.sender.sendMessage(message == null ? Component.empty() : message); }
     /**
      * JavaScript binding for {@code hasPermission}.
      */

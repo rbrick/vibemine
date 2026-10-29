@@ -8,10 +8,11 @@ import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.input.TextDialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import io.rcw.vibemine.Vibemine;
-import io.rcw.vibemine.ai.plugin.SourceFiles;
+import io.rcw.vibemine.ai.plugin.PluginStateStore;
 import io.rcw.vibemine.ai.plugin.VibedPluginManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,49 +24,63 @@ import java.util.List;
 
 final class SourceEditor {
     static final String PERMISSION = "vibemine.vibe.ide";
+    private static final int MAX_LENGTH = 16000;
     private final VibedPluginManager manager;
     private final Vibemine plugin = JavaPlugin.getPlugin(Vibemine.class);
-    private final SourceFiles files = new SourceFiles(plugin.getDataFolder().toPath().resolve("vibed-plugins"));
+    private final PluginStateStore store;
 
     SourceEditor(VibedPluginManager manager) {
         this.manager = manager;
+        this.store = manager.stateStore();
     }
 
     void open(Player player) {
-        if (!player.hasPermission(PERMISSION)) return;
-        select(player, "Plugins", manager.pluginNames().stream()
-                .map(name -> button(player, name, () -> openFiles(player, name))).toList());
+        run(player, () -> {
+            var names = new java.util.TreeSet<>(manager.pluginNames());
+            names.addAll(store.workspacePlugins(player.getUniqueId().toString()));
+            select(player, "Plugins", names.stream().map(name -> button(player, name, () -> openFiles(player, name))).toList());
+        });
     }
 
     private void openFiles(Player player, String name) throws IOException {
-        select(player, name, files.list(name).stream()
+        var workspace = store.workspace(name, player.getUniqueId().toString());
+        select(player, name + " / " + workspace.branch(), workspace.files().keySet().stream()
+                .filter(file -> file.endsWith(".js")).sorted()
                 .map(file -> button(player, file, () -> edit(player, name, file))).toList());
     }
 
     private void select(Player player, String title, List<ActionButton> buttons) {
         if (buttons.isEmpty()) {
-            player.sendMessage(Component.text("No source files or plugins found.", NamedTextColor.YELLOW));
+            message(player, Component.text("No source files or plugins found.", NamedTextColor.YELLOW));
             return;
         }
-        player.showDialog(Dialog.create(builder -> builder.empty()
+        show(player, Dialog.create(builder -> builder.empty()
                 .base(DialogBase.builder(Component.text(title)).build())
                 .type(DialogType.multiAction(buttons).exitAction(ActionButton.builder(Component.text("Close")).build()).build())));
     }
 
     private void edit(Player player, String name, String file) throws IOException {
-        String original = files.read(name, file);
+        String owner = player.getUniqueId().toString();
+        var workspace = store.workspace(name, owner);
+        String original = workspace.files().get(file);
+        if (original == null) throw new IOException("Source file no longer exists");
+        if (original.length() > MAX_LENGTH) throw new IOException("File exceeds the 16,000-character dialog limit; use agent file tools");
         var input = DialogInput.text("source", Component.text("Source"))
-                .labelVisible(false).width(600).initial(original).maxLength(SourceFiles.MAX_LENGTH)
+                .labelVisible(false).width(600).initial(original).maxLength(MAX_LENGTH)
                 .multiline(TextDialogInput.MultilineOptions.create(null, 240)).build();
-        var save = ActionButton.builder(Component.text("Save")).action(DialogAction.customClick((response, audience) -> {
+        var save = ActionButton.builder(Component.text("Save checkpoint")).action(DialogAction.customClick((response, audience) -> {
             if (!(audience instanceof Player actor) || !actor.getUniqueId().equals(player.getUniqueId())) return;
             String text = response.getText("source");
             run(player, () -> {
-                files.save(name, file, original, text);
-                player.sendMessage(Component.text("Saved " + file + ". Use /vibe enable " + name + " to reload.", NamedTextColor.GREEN));
+                if (text == null || text.length() > MAX_LENGTH) throw new IOException("Invalid source text");
+                var changed = store.write(name, owner, workspace.version(), file, text);
+                String id = store.checkpoint(name, owner, changed.version(), "Edit " + file);
+                message(player, Component.text("Saved checkpoint " + id + ". ", NamedTextColor.GREEN)
+                        .append(Component.text("[Activate]", NamedTextColor.GOLD)
+                                .clickEvent(ClickEvent.runCommand("/vibe activate " + name + " " + id))));
             });
         }, options())).build();
-        player.showDialog(Dialog.create(builder -> builder.empty()
+        show(player, Dialog.create(builder -> builder.empty()
                 .base(DialogBase.builder(Component.text(Path.of(file).getFileName().toString())).inputs(List.of(input)).build())
                 .type(DialogType.confirmation(save, ActionButton.builder(Component.text("Cancel")).build()))));
     }
@@ -80,19 +95,29 @@ final class SourceEditor {
         return ClickCallback.Options.builder().uses(1).lifetime(Duration.ofMinutes(30)).build();
     }
 
-    private void run(Player player, IOAction action) {
+    private void show(Player player, Dialog dialog) {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (!player.isOnline() || !player.hasPermission(PERMISSION)) return;
-            try {
-                action.run();
-            } catch (IOException | RuntimeException exception) {
-                player.sendMessage(Component.text("Editor: " + exception.getMessage(), NamedTextColor.RED));
-            }
+            if (player.isOnline() && player.hasPermission(PERMISSION)) player.showDialog(dialog);
         });
     }
 
-    @FunctionalInterface
-    private interface IOAction {
-        void run() throws IOException;
+    private void message(Player player, Component text) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) player.sendMessage(text);
+        });
     }
+
+    private void run(Player player, IOAction action) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline() || !player.hasPermission(PERMISSION)) return;
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                try { action.run(); }
+                catch (IOException | RuntimeException exception) {
+                    message(player, Component.text("Editor: " + exception.getMessage(), NamedTextColor.RED));
+                }
+            });
+        });
+    }
+
+    @FunctionalInterface private interface IOAction { void run() throws IOException; }
 }

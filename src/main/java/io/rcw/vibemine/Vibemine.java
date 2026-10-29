@@ -11,6 +11,7 @@ import io.rcw.vibemine.ai.chat.adapters.MessageAdapter;
 import io.rcw.vibemine.ai.plugin.VibedPluginManager;
 import io.rcw.vibemine.ai.tools.api.ApiReferenceTool;
 import io.rcw.vibemine.ai.tools.command.CommandTool;
+import io.rcw.vibemine.ai.tools.state.StateTool;
 import io.rcw.vibemine.ai.tools.io.FileEditTool;
 import io.rcw.vibemine.ai.tools.io.FileReadTool;
 import io.rcw.vibemine.ai.tools.io.FileWriteTool;
@@ -123,6 +124,7 @@ public final class Vibemine extends JavaPlugin {
         agent.registerTool(new ApiReferenceTool());
         agent.registerTool(new SoundSearchTool());
         agent.registerTool(new PluginContextTool());
+        agent.registerTool(new StateTool(this));
         agent.registerTool(new FileWriteTool(this));
         agent.registerTool(new FileReadTool(this));
         agent.registerTool(new FileEditTool(this));

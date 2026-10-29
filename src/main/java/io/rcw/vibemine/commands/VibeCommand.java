@@ -45,7 +45,9 @@ public final class VibeCommand implements BasicCommand {
                 || sender.hasPermission("vibemine.vibe.plugins.enable")
                 || sender.hasPermission("vibemine.vibe.plugins.disable")
                 || sender.hasPermission("vibemine.vibe.plugins.delete")
-                || sender.hasPermission("vibemine.vibe.plugins.translate");
+                || sender.hasPermission("vibemine.vibe.plugins.translate")
+                || sender.hasPermission("vibemine.vibe.plugins.revisions")
+                || sender.hasPermission("vibemine.vibe.plugins.revert");
     }
 
     @Override
@@ -56,7 +58,7 @@ public final class VibeCommand implements BasicCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String @NonNull [] args) {
         if (args.length == 0 || args.length == 1) {
-            return List.of("ide", "start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate").stream()
+            return List.of("ide", "start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate", "revisions", "revert", "state", "checkpoint", "branch", "checkout", "activate").stream()
                     .filter(command -> args.length == 0 || command.startsWith(args[0].toLowerCase()))
                     .toList();
         }
@@ -71,7 +73,7 @@ public final class VibeCommand implements BasicCommand {
                     .filter(name -> name.startsWith(args[1].toLowerCase()))
                     .toList();
         }
-        if (args.length == 2 && List.of("enable", "disable", "delete").contains(args[0].toLowerCase())) {
+        if (args.length == 2 && List.of("enable", "disable", "delete", "revisions", "revert", "state", "checkpoint", "branch", "checkout", "activate").contains(args[0].toLowerCase())) {
             return pluginManager.pluginNames().stream()
                     .filter(name -> name.startsWith(args[1].toLowerCase()))
                     .toList();
@@ -102,6 +104,9 @@ public final class VibeCommand implements BasicCommand {
             case "disable" -> disablePlugin(sender, args);
             case "delete", "remove" -> deletePlugin(sender, args);
             case "translate" -> translatePlugin(sender, args);
+            case "revisions", "history" -> revisions(sender, args);
+            case "revert", "activate" -> activate(sender, args);
+            case "state", "checkpoint", "branch", "checkout" -> stateCommand(sender, args);
             default -> help(sender);
         }
     }
@@ -239,6 +244,79 @@ public final class VibeCommand implements BasicCommand {
         }
     }
 
+    private void revisions(CommandSender sender, String[] args) {
+        if (!requirePermission(sender, "vibemine.vibe.plugins.revisions")) return;
+        if (!requirePluginName(sender, args, "revisions")) return;
+
+        stateTask(sender, () -> pluginManager.revisions(args[1], 100).stream()
+                .map(revision -> revision.display()).collect(java.util.stream.Collectors.joining("\n")));
+    }
+
+    private void activate(CommandSender sender, String[] args) {
+        if (!(sender.hasPermission(SourceEditor.PERMISSION) || sender.hasPermission("vibemine.vibe.plugins.enable")
+                || sender.hasPermission("vibemine.vibe.plugins.revert"))) {
+            requirePermission(sender, "vibemine.vibe.plugins.enable");
+            return;
+        }
+        if (args.length != 3) {
+            sender.sendMessage(Component.text("Usage: /vibe activate <plugin> <checkpoint>", NamedTextColor.YELLOW));
+            return;
+        }
+        stateTask(sender, () -> {
+            String expected = pluginManager.stateStore().active(args[1]);
+            pluginManager.activateAsync(sender, args[1], args[2], expected).join();
+            return "Activated checkpoint " + args[2] + ". Workspace edits and branch history were preserved.";
+        });
+    }
+
+    private void stateCommand(CommandSender sender, String[] args) {
+        if (!requirePlayer(sender) || !requirePermission(sender, SourceEditor.PERMISSION)) return;
+        if (args.length < 2) {
+            sender.sendMessage(Component.text("Usage: /vibe " + args[0] + " <plugin> [message | branch [checkpoint]]", NamedTextColor.YELLOW));
+            return;
+        }
+        String owner = ((Player) sender).getUniqueId().toString();
+        stateTask(sender, () -> {
+            var store = pluginManager.stateStore();
+            var workspace = store.workspace(args[1], owner);
+            return switch (args[0].toLowerCase(java.util.Locale.ROOT)) {
+                case "checkpoint" -> {
+                    if (args.length < 3) throw new IllegalArgumentException("Supply a checkpoint message");
+                    yield "Checkpoint: " + store.checkpoint(args[1], owner, workspace.version(), String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)));
+                }
+                case "branch" -> {
+                    if (args.length == 3) yield "Workspace forked onto " + store.fork(args[1], owner, workspace.version(), args[2]).branch();
+                    if (args.length != 4) throw new IllegalArgumentException("Usage: /vibe branch <plugin> <branch> [checkpoint]");
+                    store.branch(args[1], args[2], args[3]);
+                    yield "Branch created. Use /vibe checkout " + args[1] + " " + args[2] + " to switch.";
+                }
+                case "checkout" -> {
+                    if (args.length != 3) throw new IllegalArgumentException("Usage: /vibe checkout <plugin> <branch>");
+                    yield "Workspace is now on " + store.checkout(args[1], owner, workspace.version(), args[2]).branch();
+                }
+                default -> "Branch: " + workspace.branch() + " | Version: " + workspace.version() + " | Dirty: " + workspace.dirty()
+                        + "\nActive: " + store.active(args[1]) + "\nFiles: " + workspace.files().keySet() + "\nBranches: " + store.branches(args[1]);
+            };
+        });
+    }
+
+    private void stateTask(CommandSender sender, java.util.concurrent.Callable<String> action) {
+        var plugin = io.rcw.vibemine.Vibemine.getInstance();
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Component message;
+            try {
+                String result = action.call();
+                message = Component.text(result.isEmpty() ? "No checkpoints found." : result, NamedTextColor.GREEN);
+            } catch (Exception exception) {
+                Throwable cause = exception;
+                while (cause.getCause() != null) cause = cause.getCause();
+                message = Component.text("State: " + cause.getMessage(), NamedTextColor.RED);
+            }
+            Component response = message;
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(response));
+        });
+    }
+
     private void translatePlugin(CommandSender sender, String[] args) {
         if (!requirePermission(sender, "vibemine.vibe.plugins.translate")) return;
         if (!requirePluginName(sender, args, "translate")) return;
@@ -261,6 +339,9 @@ public final class VibeCommand implements BasicCommand {
 
     private void help(CommandSender sender) {
         sender.sendMessage(Component.text("/vibe ide", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe state <plugin> | checkpoint <plugin> <message>", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe branch <plugin> <branch> <checkpoint> | checkout <plugin> <branch>", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe activate <plugin> <checkpoint>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe start", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe continue [session-id]", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe sessions", NamedTextColor.YELLOW));
@@ -270,6 +351,8 @@ public final class VibeCommand implements BasicCommand {
         sender.sendMessage(Component.text("/vibe disable <plugin>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe delete <plugin>", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe translate <old-plugin>", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe revisions <plugin>", NamedTextColor.YELLOW));
+        sender.sendMessage(Component.text("/vibe revert <plugin> <revision>", NamedTextColor.YELLOW));
     }
 
     private java.util.Optional<Conversation> loadSession(Player player, String rawSessionId) {
