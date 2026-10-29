@@ -2,8 +2,6 @@ package io.rcw.vibemine.ai.agent.impl;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.openai.client.OpenAIClientAsync;
-import com.openai.client.okhttp.OpenAIOkHttpClientAsync;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
@@ -36,7 +34,7 @@ public final class OpenAIAgent extends Agent {
     private static final String SUMMARIZE_MODEL = "gpt-5.4-nano";
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
-    private final OpenAIClientAsync client;
+    private final SubscriptionResponses api;
     private final SubscriptionResponses subscription;
     private final boolean apiFallback;
     private final Map<String, OpenAITool> tools = new LinkedHashMap<>();
@@ -44,8 +42,7 @@ public final class OpenAIAgent extends Agent {
     public OpenAIAgent(String model, String apiKey, io.rcw.vibemine.ai.auth.SubscriptionCredentials credentials,
                        boolean subscriptionEnabled, boolean apiFallback, String subscriptionModel) {
         super(model);
-        this.client = apiKey == null || apiKey.isBlank() || apiKey.startsWith("<") ? null
-                : OpenAIOkHttpClientAsync.builder().apiKey(apiKey).build();
+        this.api = apiKey == null || apiKey.isBlank() || apiKey.startsWith("<") ? null : new SubscriptionResponses(apiKey);
         this.subscription = subscriptionEnabled ? new SubscriptionResponses(credentials, subscriptionModel) : null;
         this.apiFallback = apiFallback;
     }
@@ -116,24 +113,24 @@ public final class OpenAIAgent extends Agent {
     }
 
     private CompletableFuture<ChatCompletion> complete(ChatCompletionCreateParams params, SubscriptionResponses.Session session) {
-        if (subscription == null || session.apiOnly) return api(params);
+        if (subscription == null || session.apiOnly) return api(params, session);
         return subscription.complete(params, session).handle((response, failure) -> {
             if (failure == null) return CompletableFuture.completedFuture(response);
             Throwable cause = failure;
             while (cause.getCause() != null) cause = cause.getCause();
             boolean allowed = cause instanceof SubscriptionResponses.Failure rejected ? rejected.allowFallback
                     : cause instanceof java.io.IOException || cause instanceof java.util.concurrent.TimeoutException;
-            if (!apiFallback || client == null || !allowed) return CompletableFuture.<ChatCompletion>failedFuture(cause);
+            if (!apiFallback || api == null || !allowed) return CompletableFuture.<ChatCompletion>failedFuture(cause);
             // Only completed responses reach tool execution. Falling back cannot replay a partial tool call.
             session.apiOnly = true;
             Vibemine.getInstance().getLogger().warning("ChatGPT subscription unavailable; using configured OpenAI API key. API charges apply.");
-            return api(params);
+            return api(params, session);
         }).thenCompose(result -> result);
     }
 
-    private CompletableFuture<ChatCompletion> api(ChatCompletionCreateParams params) {
-        if (client == null) return CompletableFuture.failedFuture(new IllegalStateException("No usable API key. Connect ChatGPT with vibe auth import or configure ai.api_key."));
-        return client.chat().completions().create(params);
+    private CompletableFuture<ChatCompletion> api(ChatCompletionCreateParams params, SubscriptionResponses.Session session) {
+        if (api == null) return CompletableFuture.failedFuture(new IllegalStateException("No usable API key. Connect ChatGPT with vibe auth import or configure ai.api_key."));
+        return api.complete(params, session);
     }
 
     private ChatCompletionCreateParams createParams(List<ChatCompletionMessageParam> messages) {

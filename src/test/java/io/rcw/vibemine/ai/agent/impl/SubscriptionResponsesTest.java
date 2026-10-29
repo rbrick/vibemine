@@ -41,6 +41,9 @@ class SubscriptionResponsesTest {
         assertEquals("user", first.getAsJsonArray("input").get(0).getAsJsonObject().get("role").getAsString());
         assertTrue(first.get("instructions").getAsString().contains("instructions"));
         assertEquals("namespace", first.getAsJsonArray("tools").get(0).getAsJsonObject().get("type").getAsString());
+        var api = SubscriptionResponses.request(chat, new SubscriptionResponses.Session(), "api-model", false);
+        assertEquals("function", api.getAsJsonArray("tools").get(0).getAsJsonObject().get("type").getAsString());
+        assertEquals("file_read", api.getAsJsonArray("tools").get(0).getAsJsonObject().get("name").getAsString());
         SubscriptionResponses.retainOutput(output(), session);
         chat.getAsJsonArray("messages").add(object("{\"role\":\"assistant\",\"tool_calls\":[]}"));
         chat.getAsJsonArray("messages").add(object("{\"role\":\"tool\",\"tool_call_id\":\"call_1\",\"content\":\"source\"}"));

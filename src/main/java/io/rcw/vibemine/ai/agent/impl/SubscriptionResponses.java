@@ -17,10 +17,22 @@ import java.util.concurrent.*;
 public final class SubscriptionResponses {
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
     private final SubscriptionCredentials credentials;
+    private final String apiKey;
     private final String model;
+    private final boolean namespacedTools;
+
     public SubscriptionResponses(SubscriptionCredentials credentials, String model) {
         this.credentials = credentials;
+        this.apiKey = null;
         this.model = model;
+        this.namespacedTools = true;
+    }
+
+    public SubscriptionResponses(String apiKey) {
+        this.credentials = null;
+        this.apiKey = apiKey;
+        this.model = null;
+        this.namespacedTools = false;
     }
 
     public static final class Session {
@@ -32,10 +44,10 @@ public final class SubscriptionResponses {
     public CompletableFuture<ChatCompletion> complete(ChatCompletionCreateParams params, Session session) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (credentials == null) throw new IOException("ChatGPT authentication storage is unavailable; check server auth file permissions");
-                String token = credentials.accessToken();
+                if (credentials == null && apiKey == null) throw new IOException("OpenAI authentication is unavailable");
+                String token = credentials == null ? apiKey : credentials.accessToken();
                 JsonObject chat = JsonParser.parseString(ObjectMappers.jsonMapper().writeValueAsString(params._body())).getAsJsonObject();
-                JsonObject request = request(chat, session, model);
+                JsonObject request = request(chat, session, model == null ? chat.get("model").getAsString() : model, namespacedTools);
                 var pending = HTTP.sendAsync(HttpRequest.newBuilder(URI.create("https://api.openai.com/v1/responses"))
                         .timeout(Duration.ofSeconds(120)).header("Authorization", "Bearer " + token)
                         .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(request.toString())).build(),
@@ -67,6 +79,10 @@ public final class SubscriptionResponses {
     }
 
     static JsonObject request(JsonObject chat, Session session, String model) {
+        return request(chat, session, model, true);
+    }
+
+    static JsonObject request(JsonObject chat, Session session, String model, boolean namespacedTools) {
         JsonArray messages = chat.getAsJsonArray("messages");
         StringBuilder instructions = new StringBuilder();
         for (JsonElement element : messages) {
@@ -109,14 +125,18 @@ public final class SubscriptionResponses {
                 function.addProperty("type", "function");
                 functions.add(function);
             }
-            JsonObject namespace = new JsonObject();
-            namespace.addProperty("type", "namespace");
-            namespace.addProperty("name", "vibemine");
-            namespace.addProperty("description", "VibeMine server harness tools");
-            namespace.add("tools", functions);
-            JsonArray tools = new JsonArray();
-            tools.add(namespace);
-            request.add("tools", tools);
+            if (namespacedTools) {
+                JsonObject namespace = new JsonObject();
+                namespace.addProperty("type", "namespace");
+                namespace.addProperty("name", "vibemine");
+                namespace.addProperty("description", "VibeMine server harness tools");
+                namespace.add("tools", functions);
+                JsonArray tools = new JsonArray();
+                tools.add(namespace);
+                request.add("tools", tools);
+            } else {
+                request.add("tools", functions);
+            }
         }
         return request;
     }
@@ -214,7 +234,7 @@ public final class SubscriptionResponses {
                 "subscription_sharing_invalid_user", "subscription_sharing_user_unavailable").contains(code);
         if (!code.matches("[a-z0-9_]{1,100}")) code = "subscription_error";
         if (!requestId.matches("[a-zA-Z0-9_-]{1,100}")) requestId = "unavailable";
-        return new Failure("ChatGPT plan request failed: " + (status == 0 ? "stream event" : "HTTP " + status) + ", " + code + ", request " + requestId, fallback);
+        return new Failure("OpenAI Responses request failed: " + (status == 0 ? "stream event" : "HTTP " + status) + ", " + code + ", request " + requestId, fallback);
     }
 
     public static final class Failure extends IOException {
