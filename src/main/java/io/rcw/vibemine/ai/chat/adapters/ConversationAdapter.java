@@ -24,8 +24,9 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
 
         int estimatedOutputTokens = object.has("estimatedOutputTokens") ? object.get("estimatedOutputTokens").getAsInt() : 0;
         int estimatedToolTokens = object.has("estimatedToolTokens") ? object.get("estimatedToolTokens").getAsInt() : 0;
+        String summary = object.has("summary") && !object.get("summary").isJsonNull() ? object.get("summary").getAsString() : null;
 
-        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages, estimatedOutputTokens, estimatedToolTokens);
+        return new Conversation(UUID.fromString(playerId), UUID.fromString(sessionId), messages, estimatedOutputTokens, estimatedToolTokens, summary);
     }
 
     @Override
@@ -36,6 +37,7 @@ public final class ConversationAdapter implements JsonSerializer<Conversation>, 
         object.addProperty("playerId", src.getPlayerId().toString());
         object.addProperty("estimatedOutputTokens", src.getEstimatedOutputTokens());
         object.addProperty("estimatedToolTokens", src.getEstimatedToolTokens());
+        src.getSummary().ifPresent(summary -> object.addProperty("summary", summary));
         object.add("messages", context.serialize(src.getMessages()));
 
         return object;

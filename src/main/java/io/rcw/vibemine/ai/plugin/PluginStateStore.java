@@ -226,6 +226,48 @@ public final class PluginStateStore implements AutoCloseable {
         });
     }
 
+    /** Writes a checkpoint to the live source directory so operators can inspect and back it up. */
+    public synchronized void materialize(String plugin, String checkpoint) throws IOException {
+        name(plugin);
+        Map<String, String> files = snapshot(plugin, checkpoint);
+        Path directory = live.resolve(plugin);
+        Path temporary = Files.createTempDirectory(live, "." + plugin + "-");
+        Path backup = live.resolve("." + plugin + "-backup-" + UUID.randomUUID());
+        try {
+            for (var file : files.entrySet()) {
+                Path target = temporary.resolve(sourcePath(file.getKey())).normalize();
+                if (!target.startsWith(temporary)) throw new IOException("Invalid source path");
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, file.getValue());
+            }
+            if (Files.exists(directory)) Files.move(directory, backup, StandardCopyOption.ATOMIC_MOVE);
+            try {
+                Files.move(temporary, directory, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException exception) {
+                if (Files.exists(backup)) Files.move(backup, directory, StandardCopyOption.ATOMIC_MOVE);
+                throw exception;
+            }
+            if (Files.exists(backup)) deleteTree(backup);
+        } finally {
+            if (Files.exists(temporary)) deleteTree(temporary);
+        }
+    }
+
+    private static void deleteTree(Path directory) throws IOException {
+        Files.walkFileTree(directory, new SimpleFileVisitor<>() {
+            @Override public FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attributes) throws IOException {
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override public FileVisitResult postVisitDirectory(Path path, IOException exception) throws IOException {
+                if (exception != null) throw exception;
+                Files.delete(path);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
     private Map<String,String> importFiles(String plugin) throws IOException {
         Path directory = live.resolve(plugin);
         if (!Files.exists(directory)) return Map.of();

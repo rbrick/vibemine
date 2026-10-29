@@ -54,6 +54,7 @@ public final class OpenAIAgent extends Agent {
     public CompletableFuture<AgentResponse> generateFromConversation(Conversation conversation) {
         var latestUserMessage = latestUserMessage(conversation);
         return summarize(conversation).thenCompose(summary -> {
+            conversation.setSummary(summary);
             var messages = initialMessages(summary, latestUserMessage.message());
             var session = new SubscriptionResponses.Session();
             return complete(createParams(messages), session).thenCompose(chat -> processChat(conversation, messages, chat, 0, session));

@@ -25,11 +25,16 @@ public final class Conversation {
     private int estimatedToolTokens;
 
     public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages, int estimatedOutputTokens, int estimatedToolTokens) {
+        this(playerId, sessionId, messages, estimatedOutputTokens, estimatedToolTokens, null);
+    }
+
+    public Conversation(UUID playerId, UUID sessionId, Collection<Message> messages, int estimatedOutputTokens, int estimatedToolTokens, String summary) {
         this.playerId = playerId;
         this.sessionId = sessionId;
         this.messages.addAll(messages);
         this.estimatedOutputTokens = Math.max(0, estimatedOutputTokens);
         this.estimatedToolTokens = Math.max(0, estimatedToolTokens);
+        this.summary = summary;
     }
 
     public Conversation(UUID playerId) {
@@ -93,8 +98,9 @@ public final class Conversation {
     public String formatChatHistory(int messageCount) {
         var builder = new StringBuilder();
         messages.stream()
-                .sorted(Comparator.comparingLong(Message::timestamp))
+                .sorted(Comparator.comparingLong(Message::timestamp).reversed())
                 .limit(Math.min(messageCount, messages.size()))
+                .sorted(Comparator.comparingLong(Message::timestamp))
                 .map(message -> "%s: %s%n".formatted(message.sender().name(), message.message()))
                 .forEachOrdered(builder::append);
         return builder.toString();

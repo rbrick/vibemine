@@ -113,6 +113,23 @@ class PluginStateStoreTest {
         }
     }
 
+    @Test void materializeWritesOnlyCheckpointFilesToLiveDirectory() throws IOException {
+        try (var store = open()) {
+            var workspace = store.workspace("demo", "alice");
+            workspace = store.write("demo", "alice", workspace.version(), "plugin.json", "{\"name\":\"demo\"}");
+            workspace = store.write("demo", "alice", workspace.version(), "commands/demo.js", "command");
+            String checkpoint = store.checkpoint("demo", "alice", workspace.version(), "Ready");
+            Files.createDirectories(directory.resolve("live/demo"));
+            Files.writeString(directory.resolve("live/demo/stale.txt"), "stale");
+
+            store.materialize("demo", checkpoint);
+
+            assertEquals("{\"name\":\"demo\"}", Files.readString(directory.resolve("live/demo/plugin.json")));
+            assertEquals("command", Files.readString(directory.resolve("live/demo/commands/demo.js")));
+            assertFalse(Files.exists(directory.resolve("live/demo/stale.txt")));
+        }
+    }
+
     @Test void importsSourceOnlyAndNeverChangesOriginalFiles() throws IOException {
         Path live = directory.resolve("live/demo");
         Files.createDirectories(live.resolve(".git"));

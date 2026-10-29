@@ -134,7 +134,10 @@ public final class VibedPluginManager {
         if (!Objects.equals(stateStore.active(prepared.name()), prepared.expectedActive())) {
             throw new IOException("Active checkpoint changed; refresh before activating");
         }
-        return install(prepared.schema(), () -> stateStore.markActive(prepared.name(), prepared.id(), prepared.expectedActive()));
+        return install(prepared.schema(), () -> {
+            stateStore.materialize(prepared.name(), prepared.id());
+            stateStore.markActive(prepared.name(), prepared.id(), prepared.expectedActive());
+        });
     }
 
     public void requireImport(String requester, String imported) {

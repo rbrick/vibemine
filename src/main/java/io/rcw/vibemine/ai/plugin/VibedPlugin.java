@@ -125,7 +125,9 @@ public final class VibedPlugin implements RuntimeSwap.Runtime {
     public void executeCommand(String label, org.bukkit.command.CommandSender sender, String[] args) {
         Value function = compiledCommands.get(VibedPluginManager.normalizeName(label));
         if (function == null) return;
-        runOnMainThread(() -> function.execute(new io.rcw.vibemine.ai.plugin.context.CommandExecutionContext(sender, args), state));
+        Runnable command = () -> function.execute(new io.rcw.vibemine.ai.plugin.context.CommandExecutionContext(sender, args), state);
+        if (sender instanceof org.bukkit.entity.Player player) io.rcw.vibemine.FoliaScheduler.entity(player, guarded(command, null));
+        else runOnMainThread(command);
     }
 
     public void executeEvent(String eventName, Event event) {

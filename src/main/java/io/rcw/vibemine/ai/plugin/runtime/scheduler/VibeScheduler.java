@@ -1,6 +1,9 @@
 package io.rcw.vibemine.ai.plugin.runtime.scheduler;
 
 import io.rcw.vibemine.FoliaScheduler;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -36,6 +39,12 @@ public final class VibeScheduler {
     public VibeTask run(Value callback) {
         retain();
         return track(new VibeTask(FoliaScheduler.run(once(callback)), this::release));
+    }
+
+    /** Runs a task on the Folia region that owns the supplied block coordinates. */
+    public VibeTask region(String worldName, int x, int y, int z, Value callback) {
+        retain();
+        return track(new VibeTask(FoliaScheduler.region(location(worldName, x, y, z), once(callback)), this::release));
     }
 
     /**
@@ -105,6 +114,18 @@ public final class VibeScheduler {
         return repeat(delayTicks, periodTicks, callback);
     }
 
+    /** Runs a delayed task on the Folia region that owns the supplied block coordinates. */
+    public VibeTask regionLater(String worldName, int x, int y, int z, long delayTicks, Value callback) {
+        retain();
+        return track(new VibeTask(FoliaScheduler.regionLater(location(worldName, x, y, z), once(callback), delayTicks), this::release));
+    }
+
+    /** Runs a repeating task on the Folia region that owns the supplied block coordinates. */
+    public VibeTask regionRepeat(String worldName, int x, int y, int z, long delayTicks, long periodTicks, Value callback) {
+        retain();
+        return track(new VibeTask(FoliaScheduler.regionRepeat(location(worldName, x, y, z), repeating(callback), delayTicks, periodTicks), this::release));
+    }
+
     /**
      * Runs a repeating task asynchronously.
      */
@@ -125,6 +146,12 @@ public final class VibeScheduler {
      */
     public void cancelTask(VibeTask task) {
         if (task != null) task.cancel();
+    }
+
+    private Location location(String worldName, int x, int y, int z) {
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) throw new IllegalArgumentException("World is not loaded: " + worldName);
+        return new Location(world, x, y, z);
     }
 
     private Runnable once(Value callback) {

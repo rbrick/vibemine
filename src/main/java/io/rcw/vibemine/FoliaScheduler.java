@@ -57,8 +57,16 @@ public final class FoliaScheduler {
         return future;
     }
 
-    public static void region(Location location, Runnable task) {
-        Bukkit.getRegionScheduler().run(Vibemine.getInstance(), location, ignored -> task.run());
+    public static ScheduledTask region(Location location, Runnable task) {
+        return Bukkit.getRegionScheduler().run(Vibemine.getInstance(), location, ignored -> task.run());
+    }
+
+    public static ScheduledTask regionLater(Location location, Runnable task, long ticks) {
+        return Bukkit.getRegionScheduler().runDelayed(Vibemine.getInstance(), location, ignored -> task.run(), Math.max(1, ticks));
+    }
+
+    public static ScheduledTask regionRepeat(Location location, Runnable task, long delayTicks, long periodTicks) {
+        return Bukkit.getRegionScheduler().runAtFixedRate(Vibemine.getInstance(), location, ignored -> task.run(), Math.max(1, delayTicks), periodTicks);
     }
 
     public static ScheduledTask entityRepeat(Entity entity, Runnable task, long delayTicks, long periodTicks) {
