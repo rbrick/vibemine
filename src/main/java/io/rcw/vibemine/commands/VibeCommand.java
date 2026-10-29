@@ -36,7 +36,8 @@ public final class VibeCommand implements BasicCommand {
 
     @Override
     public boolean canUse(CommandSender sender) {
-        return sender.hasPermission("vibemine.vibe.start")
+        return sender.hasPermission(SourceEditor.PERMISSION)
+                || sender.hasPermission("vibemine.vibe.start")
                 || sender.hasPermission("vibemine.vibe.continue")
                 || sender.hasPermission("vibemine.vibe.sessions")
                 || sender.hasPermission("vibemine.vibe.stop")
@@ -55,7 +56,7 @@ public final class VibeCommand implements BasicCommand {
     @Override
     public java.util.Collection<String> suggest(CommandSourceStack source, String @NonNull [] args) {
         if (args.length == 0 || args.length == 1) {
-            return List.of("start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate").stream()
+            return List.of("ide", "start", "continue", "sessions", "stop", "plugins", "enable", "disable", "delete", "translate").stream()
                     .filter(command -> args.length == 0 || command.startsWith(args[0].toLowerCase()))
                     .toList();
         }
@@ -87,6 +88,11 @@ public final class VibeCommand implements BasicCommand {
         }
 
         switch (args[0].toLowerCase()) {
+            case "ide" -> {
+                if (requirePlayer(sender) && requirePermission(sender, SourceEditor.PERMISSION)) {
+                    new SourceEditor(pluginManager).open((Player) sender);
+                }
+            }
             case "start" -> start(sender);
             case "continue" -> continueSession(sender, args);
             case "sessions" -> sessions(sender);
@@ -254,6 +260,7 @@ public final class VibeCommand implements BasicCommand {
     }
 
     private void help(CommandSender sender) {
+        sender.sendMessage(Component.text("/vibe ide", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe start", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe continue [session-id]", NamedTextColor.YELLOW));
         sender.sendMessage(Component.text("/vibe sessions", NamedTextColor.YELLOW));

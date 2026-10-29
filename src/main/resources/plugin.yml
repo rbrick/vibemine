@@ -4,6 +4,8 @@ main: io.rcw.vibemine.Vibemine
 api-version: '26.1'
 load: STARTUP # load at startup for world generators
 permissions:
+  vibemine.vibe.ide:
+    default: op
   vibemine.vibe.start:
     default: true
   vibemine.vibe.continue:

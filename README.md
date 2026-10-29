@@ -66,6 +66,7 @@ Set your API key in the generated plugin config folder before using AI features.
 | `/vibe sessions` | List recent saved sessions |
 | `/vibe stop` | Save and stop your active session |
 | `/vibe plugins` | List generated VibePlugins |
+| `/vibe ide` | Select a plugin and edit a `.js` source file in a multiline dialog titled with its filename (16,000-character limit). Save writes to disk; use `/vibe enable <plugin>` to reload. Cancel discards edits. |
 | `/vibe enable <plugin>` | Enable a generated plugin |
 | `/vibe disable <plugin>` | Disable a generated plugin |
 | `/vibe delete <plugin>` | Delete a generated plugin |
@@ -79,6 +80,7 @@ Set your API key in the generated plugin config folder before using AI features.
 | `vibemine.vibe.sessions` | Everyone |
 | `vibemine.vibe.stop` | Everyone |
 | `vibemine.vibe.plugins` | Operators |
+| `vibemine.vibe.ide` | Operators |
 | `vibemine.vibe.plugins.enable` | Operators |
 | `vibemine.vibe.plugins.disable` | Operators |
 | `vibemine.vibe.plugins.delete` | Operators |
